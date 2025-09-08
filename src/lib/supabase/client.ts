@@ -1,12 +1,17 @@
 // src/lib/supabase/client.ts
 import { createBrowserClient } from '@supabase/ssr'
 
-export const createClient = () => {
+export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 }
 
-// Pastikan file ini ada dan isinya seperti di atas
-// JANGAN gunakan createClient dari server.ts di client component
+// src/lib/supabaseClient.ts (deprecated - for backward compatibility)
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+export const supabase = createSupabaseClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)

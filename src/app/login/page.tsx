@@ -1,8 +1,7 @@
-// src/app/login/page.tsx (Dengan perbaikan pada handleLogin)
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -17,8 +16,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
+  const supabase = createClient();
 
   // Detect screen size
   useEffect(() => {
@@ -32,36 +33,49 @@ export default function LoginPage() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Update handleLogin function di src/app/login/page.tsx
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        router.replace('/dashboard');
+      }
+    };
+    checkUser();
+  }, [supabase.auth, router]);
 
-// Update handleLogin function di src/app/login/page.tsx
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage('');
+    setLoading(true);
 
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setMessage('');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
 
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+      if (error) {
+        console.error('Error logging in:', error);
+        setMessage(`Gagal login: ${error.message}`);
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      console.error('Error logging in:', error);
-      setMessage(`Gagal login: ${error.message}`);
-      return;
+      console.log('Login successful:', data.user?.email);
+      
+      // Wait a bit for session to be set
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Force hard refresh to trigger middleware
+      window.location.href = '/dashboard';
+      
+    } catch (error) {
+      console.error('Unexpected error during login:', error);
+      setMessage('Terjadi kesalahan tak terduga. Silakan coba lagi.');
+      setLoading(false);
     }
-
-    console.log('Login successful:', data.user?.email);
-    
-    // Simple redirect
-    router.push('/dashboard');
-    
-  } catch (error) {
-    console.error('Unexpected error during login:', error);
-    setMessage('Terjadi kesalahan tak terduga. Silakan coba lagi.');
-  }
-};
+  };
 
   const scrollToForm = () => {
     document.getElementById('form-section')?.scrollIntoView({ 
@@ -120,12 +134,14 @@ const handleLogin = async (e: React.FormEvent) => {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
                       className="w-full bg-gray-800/80 backdrop-blur-sm text-white rounded-lg py-4 pl-12 pr-4 text-base relative z-10
                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-700/80 
                                transition-all duration-300 placeholder:text-gray-500
                                hover:bg-gray-700/80 hover:shadow-lg hover:shadow-blue-500/20
                                transform hover:scale-[1.02] focus:scale-[1.02] hover:-translate-y-0.5
-                               border border-transparent hover:border-blue-500/30 focus:border-blue-500/50"
+                               border border-transparent hover:border-blue-500/30 focus:border-blue-500/50
+                               disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   
@@ -137,12 +153,14 @@ const handleLogin = async (e: React.FormEvent) => {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading}
                       className="w-full bg-gray-800/80 backdrop-blur-sm text-white rounded-lg py-4 pl-12 pr-4 text-base relative z-10
                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-700/80 
                                transition-all duration-300 placeholder:text-gray-500
                                hover:bg-gray-700/80 hover:shadow-lg hover:shadow-blue-500/20
                                transform hover:scale-[1.02] focus:scale-[1.02] hover:-translate-y-0.5
-                               border border-transparent hover:border-blue-500/30 focus:border-blue-500/50"
+                               border border-transparent hover:border-blue-500/30 focus:border-blue-500/50
+                               disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -155,16 +173,24 @@ const handleLogin = async (e: React.FormEvent) => {
                   
                   <button
                     type="submit"
+                    disabled={loading}
                     className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white font-bold py-4 rounded-md 
                              hover:from-blue-700 hover:via-blue-800 hover:to-purple-800 active:from-blue-800 active:via-blue-900 active:to-purple-900
                              transition-all duration-500 text-base
                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800
                              transform hover:scale-110 hover:shadow-2xl hover:shadow-blue-500/40 hover:-translate-y-1
-                             relative overflow-hidden group"
+                             relative overflow-hidden group
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
-                    <span className="relative z-10 transition-all duration-300 group-hover:scale-105">Masuk</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
-                    <div className="absolute top-0 left-0 w-0 h-full bg-white/20 group-hover:w-full transition-all duration-700 ease-out skew-x-12 transform -translate-x-full group-hover:translate-x-full"></div>
+                    <span className="relative z-10 transition-all duration-300 group-hover:scale-105">
+                      {loading ? 'Memproses...' : 'Masuk'}
+                    </span>
+                    {!loading && (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
+                        <div className="absolute top-0 left-0 w-0 h-full bg-white/20 group-hover:w-full transition-all duration-700 ease-out skew-x-12 transform -translate-x-full group-hover:translate-x-full"></div>
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -268,7 +294,7 @@ const handleLogin = async (e: React.FormEvent) => {
     );
   }
 
-  // Mobile/Tablet Layout
+  // Mobile/Tablet Layout (keeping the same but with loading state)
   return (
     <main className="relative min-h-screen bg-gray-900 overflow-hidden">
       {/* Background dengan zoom untuk mobile */}
@@ -376,11 +402,13 @@ const handleLogin = async (e: React.FormEvent) => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
                 className="w-full bg-gray-800/80 backdrop-blur-sm text-white rounded-xl py-3 pl-10 pr-4 text-sm relative z-10
                          focus:outline-none focus:ring-2 focus:ring-blue-500
                          transition-all duration-300 placeholder:text-gray-500
                          hover:bg-gray-700/80 transform hover:scale-[1.02] focus:scale-[1.02]
-                         border border-transparent hover:border-blue-500/30"
+                         border border-transparent hover:border-blue-500/30
+                         disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             
@@ -392,11 +420,13 @@ const handleLogin = async (e: React.FormEvent) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
                 className="w-full bg-gray-800/80 backdrop-blur-sm text-white rounded-xl py-3 pl-10 pr-4 text-sm relative z-10
                          focus:outline-none focus:ring-2 focus:ring-blue-500
                          transition-all duration-300 placeholder:text-gray-500
                          hover:bg-gray-700/80 transform hover:scale-[1.02] focus:scale-[1.02]
-                         border border-transparent hover:border-blue-500/30"
+                         border border-transparent hover:border-blue-500/30
+                         disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -409,14 +439,20 @@ const handleLogin = async (e: React.FormEvent) => {
             
             <button
               type="submit"
+              disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-700 text-white font-bold py-3 rounded-xl 
                        hover:from-blue-700 hover:to-purple-800 active:from-blue-800 active:to-purple-900
                        transition-all duration-500 text-sm
                        transform hover:scale-105 hover:shadow-xl hover:shadow-blue-500/30
-                       relative overflow-hidden group"
+                       relative overflow-hidden group
+                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <span className="relative z-10">Masuk</span>
-              <div className="absolute top-0 left-0 w-0 h-full bg-white/20 group-hover:w-full transition-all duration-700 ease-out"></div>
+              <span className="relative z-10">
+                {loading ? 'Memproses...' : 'Masuk'}
+              </span>
+              {!loading && (
+                <div className="absolute top-0 left-0 w-0 h-full bg-white/20 group-hover:w-full transition-all duration-700 ease-out"></div>
+              )}
             </button>
           </form>
 
@@ -443,5 +479,4 @@ const handleLogin = async (e: React.FormEvent) => {
         </div>
       </section>
     </main>
-  );
-}
+  );}

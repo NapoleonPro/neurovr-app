@@ -70,10 +70,38 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Get session with refresh
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // Get session with retry mechanism for production
+  let session = null;
+  let retryCount = 0;
+  const maxRetries = 2;
+
+  while (retryCount <= maxRetries) {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Session error:', error);
+        if (retryCount === maxRetries) {
+          // If we can't get session after retries, treat as no session
+          session = null;
+          break;
+        }
+      } else {
+        session = data.session;
+        break;
+      }
+    } catch (err) {
+      console.error('Session fetch error:', err);
+      if (retryCount === maxRetries) {
+        session = null;
+        break;
+      }
+    }
+    
+    retryCount++;
+    // Small delay before retry
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
 
   console.log('Middleware - Path:', pathname, 'Has Session:', !!session?.user, 'User Email:', session?.user?.email)
 

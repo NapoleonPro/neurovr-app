@@ -36,7 +36,7 @@ export default function DashboardPage() {
     <div 
       className="min-h-screen relative overflow-hidden"
       style={{
-        backgroundImage: "url('/images/background.jpg')", // Ganti dengan path gambar Anda
+        backgroundImage: "url('/bg.jpeg')", // Ganti dengan path gambar Anda
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',

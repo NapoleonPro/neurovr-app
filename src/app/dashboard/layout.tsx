@@ -1,3 +1,4 @@
+// src/app/dashboard/layout.tsx - FIXED VERSION
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -35,25 +36,25 @@ export default function DashboardLayout({
 
         if (error) {
           console.error('Session error:', error);
-          setLoading(false);
           router.replace('/login');
           return;
         }
 
         if (!session?.user) {
           console.log('No session found, redirecting to login');
-          setLoading(false);
           router.replace('/login');
           return;
         }
 
         setUser(session.user);
-        setLoading(false);
       } catch (error) {
         console.error('Error checking user:', error);
         if (mounted) {
-          setLoading(false);
           router.replace('/login');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
         }
       }
     };
@@ -100,16 +101,9 @@ export default function DashboardLayout({
     );
   }
 
-  // No user state - will be handled by redirect
+  // No user state - middleware should handle this, but just in case
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Redirecting...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

@@ -1,21 +1,42 @@
 // src/app/dashboard/page.tsx
-import { createClient } from '@/lib/supabase/server';
+'use client';
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  
-  // Middleware sudah menghandle authentication
-  // Layout sudah menghandle Navbar
-  // Jadi di sini kita hanya perlu mengambil user data
-  const { data: { user } } = await supabase.auth.getUser();
-  
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { User } from '@supabase/supabase-js';
+
+export default function DashboardPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+      }
+      setLoading(false);
+    };
+
+    getUser();
+  }, [supabase.auth]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   return (
     <div 
       className="min-h-screen relative overflow-hidden"
       style={{
-        backgroundImage: "url('/bg.jpeg')", // Ganti dengan path gambar Anda
+        backgroundImage: "url('/images/background.jpg')", // Ganti dengan path gambar Anda
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',

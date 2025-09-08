@@ -32,24 +32,34 @@ export default function LoginPage() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Update handleLogin function di src/app/login/page.tsx
+
+// Update handleLogin function di src/app/login/page.tsx
+
+const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();
   setMessage('');
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email,
-    password: password,
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
 
-  if (error) {
-    console.error('Error logging in:', error);
-    setMessage('Gagal login: Email atau password salah.');
-  } else {
-    console.log('Login successful:', data);
+    if (error) {
+      console.error('Error logging in:', error);
+      setMessage(`Gagal login: ${error.message}`);
+      return;
+    }
+
+    console.log('Login successful:', data.user?.email);
     
-    // Force refresh dengan window.location.replace
-    // Ini memastikan session terupdate di semua komponen
-    window.location.replace('/dashboard');
+    // Simple redirect
+    router.push('/dashboard');
+    
+  } catch (error) {
+    console.error('Unexpected error during login:', error);
+    setMessage('Terjadi kesalahan tak terduga. Silakan coba lagi.');
   }
 };
 

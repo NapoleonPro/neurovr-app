@@ -33,25 +33,27 @@ export default function LoginPage() {
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage('');
+  e.preventDefault();
+  setMessage('');
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: password,
+  });
 
-    if (error) {
-      console.error('Error logging in:', error);
-      setMessage('Gagal login: Email atau password salah.');
-    } else {
-      console.log('Login successful:', data);
-      // === PERBAIKAN UTAMA DI SINI ===
-      // Mengganti router.push() dengan window.location.href untuk memaksa full refresh.
-      // Ini akan memastikan cookie sesi terbaru terkirim ke server.
+  if (error) {
+    console.error('Error logging in:', error);
+    setMessage('Gagal login: Email atau password salah.');
+  } else {
+    console.log('Login successful:', data);
+    
+    // Tunggu sebentar untuk memastikan session tersimpan
+    setTimeout(() => {
+      // Gunakan window.location.href untuk force refresh
       window.location.href = '/dashboard';
-    }
-  };
+    }, 100);
+  }
+};
 
   const scrollToForm = () => {
     document.getElementById('form-section')?.scrollIntoView({ 

@@ -1,4 +1,4 @@
-// src/app/login/page.tsx (Enhanced Design dengan Form di Kiri)
+// src/app/login/page.tsx (Dengan perbaikan pada handleLogin)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -46,8 +46,10 @@ export default function LoginPage() {
       setMessage('Gagal login: Email atau password salah.');
     } else {
       console.log('Login successful:', data);
-      // Jika login berhasil, arahkan ke dashboard
-      router.push('/dashboard');
+      // === PERBAIKAN UTAMA DI SINI ===
+      // Mengganti router.push() dengan window.location.href untuk memaksa full refresh.
+      // Ini akan memastikan cookie sesi terbaru terkirim ke server.
+      window.location.href = '/dashboard';
     }
   };
 

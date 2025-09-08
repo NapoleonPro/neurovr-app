@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { FaUserCircle, FaChevronDown } from 'react-icons/fa';
@@ -13,7 +12,6 @@ type NavbarProps = {
 };
 
 export default function Navbar({ user }: NavbarProps) {
-  const router = useRouter();
   const supabase = createClient();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);

@@ -1,9 +1,9 @@
-// src/app/dashboard/layout.tsx
+// src/app/dashboard/layout.tsx - FIXED VERSION
 'use client';
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Navbar from "@/components/Navbar";
 
@@ -15,61 +15,79 @@ export default function DashboardLayout({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
 
   useEffect(() => {
-    const checkUser = async () => {
+    let mounted = true;
+
+    const getInitialSession = async () => {
       try {
-        // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        console.log('Dashboard Layout - Session check:', { 
+        console.log('Dashboard Layout - Initial session check:', { 
           hasSession: !!session, 
           user: session?.user?.email || 'No user',
-          error: error?.message 
+          error: error?.message,
+          pathname: pathname
         });
+
+        if (!mounted) return;
 
         if (error) {
           console.error('Session error:', error);
-          router.push('/login');
+          router.replace('/login');
           return;
         }
 
         if (!session?.user) {
           console.log('No session found, redirecting to login');
-          router.push('/login');
+          router.replace('/login');
           return;
         }
 
         setUser(session.user);
       } catch (error) {
         console.error('Error checking user:', error);
-        router.push('/login');
+        if (mounted) {
+          router.replace('/login');
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    checkUser();
+    // Get initial session
+    getInitialSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
+        if (!mounted) return;
+
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
-          router.push('/login');
+          setLoading(false);
+          router.replace('/login');
         } else if (event === 'SIGNED_IN' && session) {
           setUser(session.user);
+          setLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setUser(session.user);
+          setLoading(false);
         }
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, [router, supabase.auth]);
+  }, [router, supabase.auth, pathname]);
 
   // Loading state
   if (loading) {
@@ -77,15 +95,15 @@ export default function DashboardLayout({
       <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading...</p>
+          <p className="text-slate-300">Memuat...</p>
         </div>
       </div>
     );
   }
 
-  // No user state
+  // No user state - middleware should handle this, but just in case
   if (!user) {
-    return null; // Router push akan handle redirect
+    return null;
   }
 
   return (

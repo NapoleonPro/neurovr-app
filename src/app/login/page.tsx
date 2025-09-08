@@ -47,11 +47,9 @@ export default function LoginPage() {
   } else {
     console.log('Login successful:', data);
     
-    // Tunggu sebentar untuk memastikan session tersimpan
-    setTimeout(() => {
-      // Gunakan window.location.href untuk force refresh
-      window.location.href = '/dashboard';
-    }, 100);
+    // Force refresh dengan window.location.replace
+    // Ini memastikan session terupdate di semua komponen
+    window.location.replace('/dashboard');
   }
 };
 

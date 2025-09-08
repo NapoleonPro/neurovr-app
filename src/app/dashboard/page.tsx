@@ -1,61 +1,21 @@
 // src/app/dashboard/page.tsx
-'use client';
+import { createClient } from '@/lib/supabase/server';
 
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
-import Navbar from '@/components/Navbar';
-
-export default function DashboardPage() {
-  const router = useRouter();
-  const supabase = createClient();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          router.push('/login');
-          return;
-        }
-
-        setUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-        router.push('/login');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getUser();
-  }, [router, supabase.auth]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  
+  // Middleware sudah menghandle authentication
+  // Layout sudah menghandle Navbar
+  // Jadi di sini kita hanya perlu mengambil user data
+  const { data: { user } } = await supabase.auth.getUser();
+  
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   return (
     <div 
       className="min-h-screen relative overflow-hidden"
       style={{
-        backgroundImage: "url('/path/to/your/background-image.jpg')", // Ganti dengan path gambar Anda
+        backgroundImage: "url('/bg.jpeg')", // Ganti dengan path gambar Anda
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -64,9 +24,6 @@ export default function DashboardPage() {
     >
       {/* Background Overlay untuk readability */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"></div>
-      
-      {/* Navbar */}
-      <Navbar user={user} />
       
       {/* Main Content */}
       <div className="relative z-10 flex items-center justify-center min-h-screen pt-24">

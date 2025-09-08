@@ -1,9 +1,11 @@
 // middleware.ts
 import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server'; // Import klien server yang baru kita buat
+import { createClient } from '@/lib/supabase/server';
 
 export async function middleware(request: NextRequest) {
-  const supabase = createClient();
+  // --- PERUBAHAN UTAMA ADA DI SINI ---
+  const supabase = await createClient();
+  // ---------------------------------
 
   // Ambil data sesi pengguna dari cookies
   const { data: { session } } = await supabase.auth.getSession();
@@ -33,15 +35,9 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Tentukan rute mana saja yang akan dijalankan oleh middleware ini
+// Konfigurasi matcher (tidak ada perubahan di sini)
 export const config = {
   matcher: [
-    /*
-     * Cocokkan semua path request kecuali untuk:
-     * - _next/static (file statis)
-     * - _next/image (optimisasi gambar)
-     * - favicon.ico (file favicon)
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

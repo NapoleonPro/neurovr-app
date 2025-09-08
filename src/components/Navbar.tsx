@@ -1,4 +1,3 @@
-// src/components/Navbar.tsx
 'use client';
 
 import Link from 'next/link';
@@ -17,12 +16,43 @@ export default function Navbar({ user }: NavbarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+    if (isLoggingOut) return; // Prevent multiple clicks
+    
+    try {
+      setIsLoggingOut(true);
+      console.log('Starting logout process...');
+      
+      // Close dropdown immediately
+      setIsDropdownOpen(false);
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        // Even if there's an error, continue with logout
+      }
+      
+      console.log('Logout completed, redirecting...');
+      
+      // Small delay to ensure auth state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Use window.location for hard redirect to ensure clean state
+      window.location.href = '/login';
+      
+    } catch (error) {
+      console.error('Unexpected logout error:', error);
+      // Force redirect even on error
+      window.location.href = '/login';
+    } finally {
+      // This might not run if window.location.href is called, but just in case
+      setIsLoggingOut(false);
+    }
   };
 
   // Close dropdown when clicking outside
@@ -97,12 +127,14 @@ export default function Navbar({ user }: NavbarProps) {
       <div className="fixed top-6 right-8 z-50" ref={dropdownRef}>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          disabled={isLoggingOut}
           className="flex items-center space-x-3 text-white hover:text-slate-200 transition-all duration-300
                    bg-slate-800/90 hover:bg-slate-700/90 backdrop-blur-xl rounded-full px-6 py-3 
-                   border border-slate-700/50 hover:border-slate-500/50 group shadow-2xl"
+                   border border-slate-700/50 hover:border-slate-500/50 group shadow-2xl
+                   disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="text-sm font-medium text-slate-300 group-hover:text-white">
-            {userName}
+            {isLoggingOut ? 'Logging out...' : userName}
           </span>
           
           {/* Profile Avatar */}
@@ -110,11 +142,17 @@ export default function Navbar({ user }: NavbarProps) {
             <div className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full 
                           flex items-center justify-center ring-2 ring-slate-600 group-hover:ring-slate-500
                           transition-all duration-300">
-              <FaUserCircle className="w-7 h-7 text-white" />
+              {isLoggingOut ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <FaUserCircle className="w-7 h-7 text-white" />
+              )}
             </div>
             {/* Online indicator */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800
-                          animate-pulse"></div>
+            {!isLoggingOut && (
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800
+                            animate-pulse"></div>
+            )}
           </div>
 
           {/* Dropdown Arrow */}
@@ -123,7 +161,7 @@ export default function Navbar({ user }: NavbarProps) {
         </button>
 
         {/* Dropdown Menu */}
-        {isDropdownOpen && (
+        {isDropdownOpen && !isLoggingOut && (
           <div className="absolute top-full right-0 mt-3 w-64 bg-slate-800/95 backdrop-blur-xl rounded-2xl 
                         shadow-2xl border border-slate-700/50 py-2 transform transition-all duration-300
                         animate-in slide-in-from-top-2 fade-in-0">
@@ -163,21 +201,31 @@ export default function Navbar({ user }: NavbarProps) {
               
               <button
                 onClick={handleLogout}
+                disabled={isLoggingOut}
                 className="w-full flex items-center justify-between px-5 py-3 text-slate-300 hover:text-red-300 
-                         hover:bg-red-500/10 transition-all duration-200 group"
+                         hover:bg-red-500/10 transition-all duration-200 group
+                         disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-slate-700/50 rounded-lg flex items-center justify-center
                                 group-hover:bg-red-500/20 transition-all duration-200">
-                    <HiOutlineLogout className="w-4 h-4 text-slate-400 group-hover:text-red-400 transition-colors" />
+                    {isLoggingOut ? (
+                      <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <HiOutlineLogout className="w-4 h-4 text-slate-400 group-hover:text-red-400 transition-colors" />
+                    )}
                   </div>
-                  <span className="text-sm font-medium">Log out</span>
+                  <span className="text-sm font-medium">
+                    {isLoggingOut ? 'Logging out...' : 'Log out'}
+                  </span>
                 </div>
-                <svg className="w-4 h-4 text-slate-400 group-hover:text-red-400 transition-colors" 
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
+                {!isLoggingOut && (
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-red-400 transition-colors" 
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>

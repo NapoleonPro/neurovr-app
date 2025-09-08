@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { HiOutlineMail, HiOutlineLockClosed, HiChevronDown } from 'react-icons/hi';
@@ -18,7 +18,9 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   // Detect screen size
@@ -36,13 +38,28 @@ export default function LoginPage() {
   // Check if user is already logged in
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        router.replace('/dashboard');
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.log('Auth check error (expected on login page):', error.message);
+        }
+        
+        if (user) {
+          console.log('User already logged in, redirecting to dashboard');
+          // Get return URL from query params
+          const returnUrl = searchParams?.get('from') || '/dashboard';
+          router.replace(returnUrl);
+        }
+      } catch (error) {
+        console.error('Error checking user:', error);
+      } finally {
+        setInitialCheckDone(true);
       }
     };
+    
     checkUser();
-  }, [supabase.auth, router]);
+  }, [supabase.auth, router, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,29 +67,48 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('Attempting login for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
+        email: email.trim(),
         password: password,
       });
 
       if (error) {
-        console.error('Error logging in:', error);
-        setMessage(`Gagal login: ${error.message}`);
-        setLoading(false);
+        console.error('Login error:', error);
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Gagal login. Silakan coba lagi.';
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email atau password salah';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email belum dikonfirmasi. Silakan cek inbox Anda.';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Terlalu banyak percobaan. Silakan tunggu beberapa menit.';
+        }
+        
+        setMessage(errorMessage);
         return;
       }
 
-      console.log('Login successful:', data.user?.email);
-      
-      // Wait a bit for session to be set
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Force hard refresh to trigger middleware
-      window.location.href = '/dashboard';
+      if (data.user) {
+        console.log('Login successful for:', data.user.email);
+        
+        // Small delay to ensure auth state is properly set
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Get return URL from query params
+        const returnUrl = searchParams?.get('from') || '/dashboard';
+        
+        // Use router.replace for smooth navigation
+        router.replace(returnUrl);
+      }
       
     } catch (error) {
-      console.error('Unexpected error during login:', error);
+      console.error('Unexpected login error:', error);
       setMessage('Terjadi kesalahan tak terduga. Silakan coba lagi.');
+    } finally {
       setLoading(false);
     }
   };
@@ -88,6 +124,18 @@ export default function LoginPage() {
     '/neuron2.jpeg',
     '/neuron3.jpeg',
   ];
+
+  // Show loading while checking initial auth state
+  if (!initialCheckDone) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-300">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Desktop Layout
   if (!isMobile) {
@@ -183,7 +231,14 @@ export default function LoginPage() {
                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     <span className="relative z-10 transition-all duration-300 group-hover:scale-105">
-                      {loading ? 'Memproses...' : 'Masuk'}
+                      {loading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Memproses...
+                        </div>
+                      ) : (
+                        'Masuk'
+                      )}
                     </span>
                     {!loading && (
                       <>
@@ -294,7 +349,7 @@ export default function LoginPage() {
     );
   }
 
-  // Mobile/Tablet Layout (keeping the same but with loading state)
+  // Mobile/Tablet Layout
   return (
     <main className="relative min-h-screen bg-gray-900 overflow-hidden">
       {/* Background dengan zoom untuk mobile */}
@@ -448,7 +503,14 @@ export default function LoginPage() {
                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               <span className="relative z-10">
-                {loading ? 'Memproses...' : 'Masuk'}
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Memproses...
+                  </div>
+                ) : (
+                  'Masuk'
+                )}
               </span>
               {!loading && (
                 <div className="absolute top-0 left-0 w-0 h-full bg-white/20 group-hover:w-full transition-all duration-700 ease-out"></div>
@@ -479,4 +541,5 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
-  );}
+  );
+}

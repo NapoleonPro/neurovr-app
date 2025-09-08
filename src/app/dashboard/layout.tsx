@@ -1,4 +1,3 @@
-// src/app/dashboard/layout.tsx - FIXED VERSION
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -14,6 +13,7 @@ export default function DashboardLayout({
 }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
@@ -23,11 +23,12 @@ export default function DashboardLayout({
 
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Use getUser instead of getSession for better reliability
+        const { data: { user }, error } = await supabase.auth.getUser();
         
-        console.log('Dashboard Layout - Initial session check:', { 
-          hasSession: !!session, 
-          user: session?.user?.email || 'No user',
+        console.log('Dashboard Layout - Initial user check:', { 
+          hasUser: !!user, 
+          userEmail: user?.email || 'No user',
           error: error?.message,
           pathname: pathname
         });
@@ -35,22 +36,39 @@ export default function DashboardLayout({
         if (!mounted) return;
 
         if (error) {
-          console.error('Session error:', error);
+          console.error('User check error:', error);
+          // Only redirect if it's an auth error, not network error
+          if (error.message.includes('Invalid Refresh Token') || 
+              error.message.includes('refresh_token_not_found')) {
+            setUser(null);
+            setLoading(false);
+            setAuthChecked(true);
+            router.replace('/login');
+          } else {
+            // Network error - don't redirect immediately
+            setLoading(false);
+            setAuthChecked(true);
+          }
+          return;
+        }
+
+        if (!user) {
+          console.log('No user found, redirecting to login');
+          setUser(null);
+          setLoading(false);
+          setAuthChecked(true);
           router.replace('/login');
           return;
         }
 
-        if (!session?.user) {
-          console.log('No session found, redirecting to login');
-          router.replace('/login');
-          return;
-        }
-
-        setUser(session.user);
+        setUser(user);
+        setAuthChecked(true);
       } catch (error) {
         console.error('Error checking user:', error);
         if (mounted) {
-          router.replace('/login');
+          setLoading(false);
+          setAuthChecked(true);
+          // Don't redirect on network errors
         }
       } finally {
         if (mounted) {
@@ -69,16 +87,37 @@ export default function DashboardLayout({
         
         if (!mounted) return;
 
-        if (event === 'SIGNED_OUT' || !session) {
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out, redirecting to login');
           setUser(null);
           setLoading(false);
+          setAuthChecked(true);
+          // Use window.location for hard redirect after logout
+          window.location.href = '/login';
+          return;
+        } 
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('User signed in');
+          setUser(session.user);
+          setLoading(false);
+          setAuthChecked(true);
+        } 
+        
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log('Token refreshed');
+          setUser(session.user);
+          setLoading(false);
+          setAuthChecked(true);
+        }
+
+        // Handle case where session becomes null unexpectedly
+        if (!session) {
+          console.log('Session lost unexpectedly');
+          setUser(null);
+          setLoading(false);
+          setAuthChecked(true);
           router.replace('/login');
-        } else if (event === 'SIGNED_IN' && session) {
-          setUser(session.user);
-          setLoading(false);
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          setUser(session.user);
-          setLoading(false);
         }
       }
     );
@@ -89,8 +128,8 @@ export default function DashboardLayout({
     };
   }, [router, supabase.auth, pathname]);
 
-  // Loading state
-  if (loading) {
+  // Show loading while checking auth
+  if (loading || !authChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center">
         <div className="text-center">
@@ -101,9 +140,16 @@ export default function DashboardLayout({
     );
   }
 
-  // No user state - middleware should handle this, but just in case
+  // No user state - show nothing while redirecting
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Mengarahkan...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

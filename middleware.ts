@@ -70,40 +70,25 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Get session with retry mechanism for production
-  let session = null;
-  let retryCount = 0;
-  const maxRetries = 2;
-
-  while (retryCount <= maxRetries) {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Session error:', error);
-        if (retryCount === maxRetries) {
-          // If we can't get session after retries, treat as no session
-          session = null;
-          break;
-        }
-      } else {
-        session = data.session;
-        break;
-      }
-    } catch (err) {
-      console.error('Session fetch error:', err);
-      if (retryCount === maxRetries) {
-        session = null;
-        break;
-      }
-    }
+  // Get user instead of session - more reliable
+  let user = null;
+  
+  try {
+    const { data, error } = await supabase.auth.getUser();
     
-    retryCount++;
-    // Small delay before retry
-    await new Promise(resolve => setTimeout(resolve, 100));
+    if (error) {
+      console.error('Auth error in middleware:', error.message);
+      // Don't redirect on auth errors, let client handle it
+      user = null;
+    } else {
+      user = data.user;
+    }
+  } catch (err) {
+    console.error('Middleware auth error:', err);
+    user = null;
   }
 
-  console.log('Middleware - Path:', pathname, 'Has Session:', !!session?.user, 'User Email:', session?.user?.email)
+  console.log('Middleware - Path:', pathname, 'Has User:', !!user, 'User Email:', user?.email)
 
   // Public routes
   const publicRoutes = ['/', '/login', '/register']
@@ -113,20 +98,23 @@ export async function middleware(request: NextRequest) {
   const protectedRoutes = ['/dashboard']
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
 
-  // If no session and trying to access protected route
-  if (!session?.user && isProtectedRoute) {
-    console.log('No session, redirecting to login')
-    return NextResponse.redirect(new URL('/login', request.url))
+  // If no user and trying to access protected route
+  if (!user && isProtectedRoute) {
+    console.log('No user, redirecting to login from:', pathname)
+    const loginUrl = new URL('/login', request.url)
+    // Add return url for better UX
+    loginUrl.searchParams.set('from', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // If has session and accessing login/register pages
-  if (session?.user && (pathname === '/login' || pathname === '/register')) {
+  // If has user and accessing login/register pages
+  if (user && (pathname === '/login' || pathname === '/register')) {
     console.log('User logged in, redirecting from auth page to dashboard')
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // If has session and accessing root
-  if (session?.user && pathname === '/') {
+  // If has user and accessing root
+  if (user && pathname === '/') {
     console.log('User logged in, redirecting from root to dashboard')
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }

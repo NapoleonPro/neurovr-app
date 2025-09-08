@@ -3,41 +3,75 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export async function middleware(request: NextRequest) {
-  // --- PERUBAHAN UTAMA ADA DI SINI ---
-  const supabase = await createClient();
-  // ---------------------------------
-
-  // Ambil data sesi pengguna dari cookies
-  const { data: { session } } = await supabase.auth.getSession();
-
   const { pathname } = request.nextUrl;
 
-  // Rute yang dianggap sebagai rute otentikasi (tidak perlu login)
-  const authRoutes = ['/login', '/register'];
-  // Rute yang dilindungi (wajib login)
-  const protectedRoutes = ['/dashboard'];
-
-  // --- Logika Penjaga Gerbang ---
-
-  // 1. Jika pengguna BELUM login dan mencoba mengakses rute yang dilindungi
-  if (!session && protectedRoutes.includes(pathname)) {
-    // Alihkan (redirect) ke halaman login
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Skip middleware untuk static files dan API routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.') // Skip untuk file dengan extension
+  ) {
+    return NextResponse.next();
   }
 
-  // 2. Jika pengguna SUDAH login dan mencoba mengakses halaman login/register
-  if (session && authRoutes.includes(pathname)) {
-    // Alihkan (redirect) ke dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  try {
+    const supabase = await createClient();
+    
+    // Ambil data sesi pengguna dari cookies
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    // Logging untuk debugging
+    console.log('=== MIDDLEWARE DEBUG ===');
+    console.log('Path:', pathname);
+    console.log('Has session:', !!session);
+    console.log('Session user:', session?.user?.email || 'No user');
+    console.log('Session error:', error);
+
+    // Rute yang dianggap sebagai rute otentikasi (tidak perlu login)
+    const authRoutes = ['/login', '/register'];
+    
+    // Rute yang dilindungi (wajib login) - GUNAKAN startsWith untuk menangkap semua subpath
+    const isProtectedRoute = pathname.startsWith('/dashboard');
+    const isAuthRoute = authRoutes.includes(pathname);
+
+    console.log('Is protected route:', isProtectedRoute);
+    console.log('Is auth route:', isAuthRoute);
+
+    // 1. Jika pengguna BELUM login dan mencoba mengakses rute yang dilindungi
+    if (!session && isProtectedRoute) {
+      console.log('Redirecting to login: no session for protected route');
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // 2. Jika pengguna SUDAH login dan mencoba mengakses halaman login/register
+    if (session && isAuthRoute) {
+      console.log('Redirecting to dashboard: user already authenticated');
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    
+    console.log('Allowing access to:', pathname);
+    console.log('=== END MIDDLEWARE DEBUG ===');
+    
+    // Jika tidak ada kondisi di atas yang terpenuhi, izinkan akses
+    return NextResponse.next();
+
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // Jika ada error, izinkan request melanjutkan
+    return NextResponse.next();
   }
-  
-  // Jika tidak ada kondisi di atas yang terpenuhi, izinkan akses
-  return NextResponse.next();
 }
 
-// Konfigurasi matcher (tidak ada perubahan di sini)
+// Konfigurasi matcher
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files with extensions
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

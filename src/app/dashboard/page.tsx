@@ -12,11 +12,28 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
+      try {
+        // Use getSession first - it doesn't throw auth errors
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setLoading(false);
+          return;
+        }
+
+        if (sessionData.session?.user) {
+          setUser(sessionData.session.user);
+          setLoading(false);
+          return;
+        }
+
+        // If no session, the layout will handle the redirect
+        setLoading(false);
+      } catch (error) {
+        console.error('Error getting user:', error);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getUser();

@@ -23,37 +23,20 @@ export default function DashboardLayout({
 
     const getInitialSession = async () => {
       try {
-        // Use getUser instead of getSession for better reliability
-        const { data: { user }, error } = await supabase.auth.getUser();
+        // First try to get session - this doesn't trigger auth errors
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
-        console.log('Dashboard Layout - Initial user check:', { 
-          hasUser: !!user, 
-          userEmail: user?.email || 'No user',
-          error: error?.message,
+        console.log('Dashboard Layout - Session check:', { 
+          hasSession: !!sessionData.session, 
+          userEmail: sessionData.session?.user?.email || 'No session',
+          error: sessionError?.message,
           pathname: pathname
         });
 
         if (!mounted) return;
 
-        if (error) {
-          console.error('User check error:', error);
-          // Only redirect if it's an auth error, not network error
-          if (error.message.includes('Invalid Refresh Token') || 
-              error.message.includes('refresh_token_not_found')) {
-            setUser(null);
-            setLoading(false);
-            setAuthChecked(true);
-            router.replace('/login');
-          } else {
-            // Network error - don't redirect immediately
-            setLoading(false);
-            setAuthChecked(true);
-          }
-          return;
-        }
-
-        if (!user) {
-          console.log('No user found, redirecting to login');
+        if (sessionError) {
+          console.error('Session check error:', sessionError);
           setUser(null);
           setLoading(false);
           setAuthChecked(true);
@@ -61,14 +44,70 @@ export default function DashboardLayout({
           return;
         }
 
-        setUser(user);
-        setAuthChecked(true);
+        if (sessionData.session?.user) {
+          // We have a valid session
+          setUser(sessionData.session.user);
+          setAuthChecked(true);
+          setLoading(false);
+          return;
+        }
+
+        // No session found - try getUser (this might refresh token)
+        try {
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          
+          if (!mounted) return;
+
+          if (userError) {
+            // Handle specific auth errors gracefully
+            if (userError.message.includes('Auth session missing') ||
+                userError.message.includes('session_not_found') ||
+                userError.message.includes('Invalid Refresh Token') || 
+                userError.message.includes('refresh_token_not_found')) {
+              
+              console.log('No valid session found, redirecting to login');
+              setUser(null);
+              setLoading(false);
+              setAuthChecked(true);
+              router.replace('/login');
+            } else {
+              // Network or other errors - don't redirect immediately
+              console.error('User check error (non-auth):', userError);
+              setLoading(false);
+              setAuthChecked(true);
+            }
+            return;
+          }
+
+          if (!userData.user) {
+            console.log('No user found, redirecting to login');
+            setUser(null);
+            setLoading(false);
+            setAuthChecked(true);
+            router.replace('/login');
+            return;
+          }
+
+          setUser(userData.user);
+          setAuthChecked(true);
+        } catch (userFetchError) {
+          console.error('Error fetching user:', userFetchError);
+          if (mounted) {
+            // On any error fetching user, redirect to login
+            setUser(null);
+            setLoading(false);
+            setAuthChecked(true);
+            router.replace('/login');
+          }
+        }
+
       } catch (error) {
-        console.error('Error checking user:', error);
+        console.error('Error checking session:', error);
         if (mounted) {
+          setUser(null);
           setLoading(false);
           setAuthChecked(true);
-          // Don't redirect on network errors
+          router.replace('/login');
         }
       } finally {
         if (mounted) {

@@ -70,18 +70,36 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Get user instead of session - more reliable
+  // Get session first, then user - more reliable approach
   let user = null;
+  let hasValidSession = false;
   
   try {
-    const { data, error } = await supabase.auth.getUser();
+    // First check if we have a session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     
-    if (error) {
-      console.error('Auth error in middleware:', error.message);
-      // Don't redirect on auth errors, let client handle it
-      user = null;
-    } else {
-      user = data.user;
+    if (sessionError) {
+      console.error('Session error in middleware:', sessionError.message);
+      hasValidSession = false;
+    } else if (sessionData.session) {
+      hasValidSession = true;
+      user = sessionData.session.user;
+    }
+
+    // If no session, try to get user (this might trigger token refresh)
+    if (!hasValidSession) {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        // Only log if it's not the expected "session missing" error
+        if (!userError.message.includes('session_not_found') && 
+            !userError.message.includes('Auth session missing')) {
+          console.error('Auth error in middleware:', userError.message);
+        }
+        user = null;
+      } else {
+        user = userData.user;
+      }
     }
   } catch (err) {
     console.error('Middleware auth error:', err);

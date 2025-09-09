@@ -2,7 +2,6 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useState } from 'react';
 import { FaPlay, FaFileDownload, FaEye, FaTimes } from 'react-icons/fa';
 
@@ -10,46 +9,25 @@ import { FaPlay, FaFileDownload, FaEye, FaTimes } from 'react-icons/fa';
 const learningMaterials = [
   {
     id: 1,
-    title: 'Sistem Saraf Manusia',
+    title: 'Sistem Saraf',
     type: 'PPT',
-    thumbnailUrl: '/thumbnails/ppt-sistem-saraf.png',
-    // Untuk PPT, bisa menggunakan Google Drive embed atau SlideShare
-    embedUrl: 'https://docs.google.com/presentation/d/YOUR_PRESENTATION_ID/embed?start=false&loop=false&delayms=3000',
+    thumbnailUrl: '/api/placeholder/400/250', // Placeholder image
+    // Contoh real Google Slides embed URL:
+    embedUrl: 'https://docs.google.com/presentation/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/embed?start=false&loop=false&delayms=3000',
     downloadUrl: '/files/sistem-saraf.pptx',
     duration: null,
     description: 'Penjelasan lengkap tentang sistem saraf manusia dan fungsinya',
   },
   {
     id: 2,
-    title: 'Sistem Saraf dalam Animasi',
+    title: 'Sistem Saraf',
     type: 'Video',
-    thumbnailUrl: '/thumbnails/video-sistem-saraf.png',
-    // Untuk video, bisa menggunakan YouTube, Vimeo, atau file lokal
-    embedUrl: 'https://www.youtube.com/embed/YOUR_VIDEO_ID',
-    // embedUrl: '/videos/sistem-saraf.mp4', // Untuk video lokal
+    thumbnailUrl: '/api/placeholder/400/250', // Placeholder image
+    // Contoh YouTube embed URL:
+    embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
     downloadUrl: null,
     duration: '3:07',
     description: 'Video animasi interaktif tentang cara kerja sistem saraf',
-  },
-  {
-    id: 3,
-    title: 'Neuron dan Sinapsis',
-    type: 'PPT',
-    thumbnailUrl: '/thumbnails/ppt-neuron.png',
-    embedUrl: 'https://docs.google.com/presentation/d/YOUR_NEURON_PRESENTATION_ID/embed?start=false&loop=false&delayms=3000',
-    downloadUrl: '/files/neuron-sinapsis.pptx',
-    duration: null,
-    description: 'Memahami struktur neuron dan proses transmisi sinyal',
-  },
-  {
-    id: 4,
-    title: 'Otak dan Fungsinya',
-    type: 'Video',
-    thumbnailUrl: '/thumbnails/video-otak.png',
-    embedUrl: 'https://www.youtube.com/embed/YOUR_BRAIN_VIDEO_ID',
-    downloadUrl: null,
-    duration: '5:23',
-    description: 'Eksplorasi mendalam tentang anatomi dan fungsi otak manusia',
   },
 ];
 
@@ -63,24 +41,24 @@ function ContentModal({ material, isOpen, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-6xl max-h-[90vh] bg-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="relative w-full max-w-5xl max-h-[90vh] bg-gray-800 rounded-2xl overflow-hidden shadow-2xl">
         {/* Header Modal */}
-        <div className="flex items-center justify-between p-4 sm:p-6 bg-slate-700/50 border-b border-slate-600">
+        <div className="flex items-center justify-between p-4 sm:p-6 bg-gray-700/50 border-b border-gray-600">
           <div>
             <h3 className="text-lg sm:text-xl font-semibold text-white">{material.title}</h3>
-            <p className="text-sm text-slate-300 mt-1">{material.description}</p>
+            <p className="text-sm text-gray-300 mt-1">{material.description}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-600 rounded-lg transition-colors duration-200"
+            className="p-2 hover:bg-gray-600 rounded-lg transition-colors duration-200"
           >
-            <FaTimes className="w-5 h-5 text-slate-300 hover:text-white" />
+            <FaTimes className="w-5 h-5 text-gray-300 hover:text-white" />
           </button>
         </div>
 
         {/* Content Area */}
         <div className="p-4 sm:p-6">
-          <div className="aspect-video w-full bg-slate-900 rounded-lg overflow-hidden">
+          <div className="aspect-video w-full bg-gray-900 rounded-lg overflow-hidden">
             {material.type === 'Video' ? (
               // Video Embed
               material.embedUrl.includes('youtube.com') || material.embedUrl.includes('vimeo.com') ? (
@@ -106,7 +84,7 @@ function ContentModal({ material, isOpen, onClose }: {
               // PPT Embed
               <iframe
                 src={material.embedUrl}
-                className="w-full h-full"
+                className="w-full h-full border-0"
                 allowFullScreen
                 title={material.title}
               />
@@ -149,122 +127,112 @@ export default function MateriPage() {
 
   return (
     <>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pt-24 sm:pt-28">
-        {/* Header Section */}
-        <div className="mb-8 sm:mb-12">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Modul Pembelajaran
-          </h1>
-          <p className="text-slate-300 text-sm sm:text-base lg:text-lg max-w-2xl">
-            Jelajahi berbagai materi pembelajaran neurosains melalui presentasi interaktif dan video edukatif
-          </p>
-        </div>
+      {/* Background dengan gradient seperti di gambar */}
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pt-24 sm:pt-28">
+          {/* Header Section */}
+          <div className="mb-8 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
+              Modul
+            </h1>
+          </div>
 
-        {/* Filter Tabs (Optional) */}
-        <div className="flex flex-wrap gap-2 sm:gap-4 mb-8">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
-            Semua
-          </button>
-          <button className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-colors">
-            Presentasi
-          </button>
-          <button className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-colors">
-            Video
-          </button>
-        </div>
-
-        {/* Grid untuk Kartu Materi - Responsive */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          {learningMaterials.map((material) => (
-            <div
-              key={material.id}
-              onClick={() => handleCardClick(material)}
-              className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg overflow-hidden 
-                       group transition-all duration-300 ease-in-out cursor-pointer
-                       hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20
-                       border border-transparent hover:border-blue-500/30
-                       transform-gpu"
-            >
-              
-              {/* Bagian Thumbnail */}
-              <div className="relative w-full h-40 sm:h-48 lg:h-52">
-                <Image
-                  src={material.thumbnailUrl}
-                  alt={`Thumbnail untuk ${material.title}`}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-110"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                />
+          {/* Grid untuk Kartu Materi - 2 kolom seperti di gambar */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl">
+            {learningMaterials.map((material) => (
+              <div
+                key={material.id}
+                onClick={() => handleCardClick(material)}
+                className="bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden 
+                         group transition-all duration-300 ease-in-out cursor-pointer
+                         hover:scale-105 hover:shadow-2xl hover:bg-white/20
+                         border border-white/20"
+              >
                 
-                {/* Overlay dengan Play/View Button */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 
-                              flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    {material.type === 'Video' ? (
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                        <FaPlay className="w-4 h-4 sm:w-6 sm:h-6 text-white ml-1" />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-600 rounded-full flex items-center justify-center">
-                        <FaEye className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-                      </div>
+                {/* Bagian Thumbnail */}
+                <div className="relative w-full h-48 lg:h-56">
+                  <Image
+                    src={material.thumbnailUrl}
+                    alt={`Thumbnail untuk ${material.title}`}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-110"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                  
+                  {/* Overlay dengan Play/View Button */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 
+                                flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      {material.type === 'Video' ? (
+                        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                          <FaPlay className="w-6 h-6 text-white ml-1" />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center">
+                          <FaEye className="w-6 h-6 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Tag Tipe (PPT/Video) - Posisi seperti di gambar */}
+                  <span className={`absolute top-4 right-4 px-3 py-1 text-sm font-bold text-white rounded-md
+                                 ${material.type === 'PPT' ? 'bg-blue-600' : 'bg-purple-600'}`}>
+                    {material.type}
+                  </span>
+
+                  {/* Durasi (hanya untuk video) - Posisi seperti di gambar */}
+                  {material.type === 'Video' && material.duration && (
+                    <span className="absolute bottom-4 right-4 px-2 py-1 text-sm text-white bg-black/70 rounded">
+                      {material.duration}
+                    </span>
+                  )}
+
+                  {/* Judul di atas thumbnail seperti di gambar */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                    <h2 className="text-white font-bold text-xl mb-1">
+                      SISTEM SARAF
+                    </h2>
+                  </div>
+                </div>
+
+                {/* Bagian Konten bawah - minimal karena di gambar fokus pada thumbnail */}
+                <div className="p-4">
+                  <h3 className="text-white font-semibold text-lg mb-2">
+                    {material.title}
+                  </h3>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-between">
+                    <button className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors">
+                      {material.type === 'Video' ? 'Tonton' : 'Lihat'}
+                    </button>
+                    
+                    {material.downloadUrl && (
+                      <a
+                        href={material.downloadUrl}
+                        download
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-white/60 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                        title="Download"
+                      >
+                        <FaFileDownload className="w-4 h-4" />
+                      </a>
                     )}
                   </div>
                 </div>
-                
-                {/* Tag Tipe (PPT/Video) */}
-                <span className={`absolute top-2 sm:top-3 right-2 sm:right-3 px-2 sm:px-3 py-1 text-xs font-bold text-white rounded-md
-                               ${material.type === 'PPT' ? 'bg-blue-600' : 'bg-indigo-600'}`}>
-                  {material.type}
-                </span>
-
-                {/* Durasi (hanya untuk video) */}
-                {material.type === 'Video' && material.duration && (
-                  <span className="absolute bottom-2 right-2 px-2 py-0.5 text-xs text-white bg-black/70 rounded">
-                    {material.duration}
-                  </span>
-                )}
               </div>
-
-              {/* Bagian Konten */}
-              <div className="p-4 sm:p-5 lg:p-6">
-                <h2 className="text-base sm:text-lg font-semibold text-white mb-2 line-clamp-2">
-                  {material.title}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400 line-clamp-2 mb-3">
-                  {material.description}
-                </p>
-                
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between">
-                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors">
-                    {material.type === 'Video' ? 'Tonton' : 'Lihat'}
-                  </button>
-                  
-                  {material.downloadUrl && (
-                    <a
-                      href={material.downloadUrl}
-                      download
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-700 rounded-lg"
-                      title="Download"
-                    >
-                      <FaFileDownload className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Empty State (jika tidak ada materi) */}
-        {learningMaterials.length === 0 && (
-          <div className="text-center py-12 sm:py-16">
-            <div className="text-slate-400 text-lg mb-4">Belum ada materi tersedia</div>
-            <p className="text-slate-500 text-sm">Materi pembelajaran akan segera ditambahkan</p>
+            ))}
           </div>
-        )}
+
+          {/* Empty State */}
+          {learningMaterials.length === 0 && (
+            <div className="text-center py-12 sm:py-16">
+              <div className="text-white/60 text-lg mb-4">Belum ada materi tersedia</div>
+              <p className="text-white/40 text-sm">Materi pembelajaran akan segera ditambahkan</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal untuk menampilkan konten */}

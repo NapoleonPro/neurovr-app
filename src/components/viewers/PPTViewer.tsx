@@ -1,7 +1,7 @@
 // src/components/viewers/PPTViewer.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FaExpand, FaCompress, FaDownload, FaShare } from 'react-icons/fa';
 
 interface PPTViewerProps {
@@ -12,15 +12,52 @@ interface PPTViewerProps {
 
 export function PPTViewer({ embedUrl, title, downloadUrl }: PPTViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
+    if (containerRef.current) {
+      if (!isFullscreen) {
+        // Enter fullscreen
+        if (containerRef.current.requestFullscreen) {
+          containerRef.current.requestFullscreen();
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
   };
 
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
   return (
-    <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+    <div 
+      ref={containerRef}
+      className={`relative bg-gray-900 rounded-lg overflow-hidden ${
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'w-full'
+      }`}
+    >
       {/* Controls Bar */}
-      <div className="flex items-center justify-between p-4 bg-slate-700/90 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-700/90 backdrop-blur-sm">
         <h3 className="text-white font-semibold text-sm sm:text-base truncate flex-1 mr-4">
           {title}
         </h3>
@@ -29,34 +66,35 @@ export function PPTViewer({ embedUrl, title, downloadUrl }: PPTViewerProps) {
             <a
               href={downloadUrl}
               download
-              className="p-2 hover:bg-slate-600 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-600 rounded-lg transition-colors duration-200"
               title="Download PPT"
             >
-              <FaDownload className="w-4 h-4 text-slate-300 hover:text-white" />
+              <FaDownload className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300 hover:text-white" />
             </a>
           )}
           <button
             onClick={toggleFullscreen}
-            className="p-2 hover:bg-slate-600 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-600 rounded-lg transition-colors duration-200"
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
           >
             {isFullscreen ? (
-              <FaCompress className="w-4 h-4 text-slate-300 hover:text-white" />
+              <FaCompress className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300 hover:text-white" />
             ) : (
-              <FaExpand className="w-4 h-4 text-slate-300 hover:text-white" />
+              <FaExpand className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300 hover:text-white" />
             )}
           </button>
         </div>
       </div>
 
       {/* PPT Embed */}
-      <div className={`${isFullscreen ? 'h-[calc(100vh-64px)]' : 'aspect-video'} w-full`}>
+      <div className={`w-full ${isFullscreen ? 'h-[calc(100vh-56px)] sm:h-[calc(100vh-64px)]' : 'aspect-video'}`}>
         <iframe
           src={embedUrl}
           className="w-full h-full border-0"
           allowFullScreen
           title={title}
           loading="lazy"
+          allow="fullscreen"
         />
       </div>
     </div>
@@ -82,18 +120,22 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Untuk video lokal (bukan YouTube/Vimeo)
-  const isLocalVideo = !embedUrl.includes('youtube.com') && !embedUrl.includes('vimeo.com') && !embedUrl.includes('embed');
+  // Check if it's a local video (not YouTube/Vimeo)
+  const isLocalVideo = !embedUrl.includes('youtube.com') && 
+                      !embedUrl.includes('youtu.be') && 
+                      !embedUrl.includes('vimeo.com') && 
+                      !embedUrl.includes('embed');
 
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef.current.play().catch(console.error);
       }
       setIsPlaying(!isPlaying);
     }
@@ -109,11 +151,16 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
   const toggleFullscreen = () => {
     if (containerRef.current) {
       if (!isFullscreen) {
-        containerRef.current.requestFullscreen?.();
+        // Enter fullscreen
+        if (containerRef.current.requestFullscreen) {
+          containerRef.current.requestFullscreen();
+        }
       } else {
-        document.exitFullscreen?.();
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
       }
-      setIsFullscreen(!isFullscreen);
     }
   };
 
@@ -137,31 +184,55 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
     }
   };
 
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (videoRef.current) {
+      const newVolume = parseFloat(e.target.value);
+      videoRef.current.volume = newVolume;
+      setVolume(newVolume);
+      setIsMuted(newVolume === 0);
+    }
+  };
+
   const formatTime = (time: number) => {
+    if (isNaN(time)) return '0:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Handle fullscreen change events
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
   }, []);
 
+  // YouTube/Vimeo Embed
   if (!isLocalVideo) {
-    // YouTube/Vimeo Embed
     return (
-      <div ref={containerRef} className="relative w-full aspect-video bg-slate-900 rounded-lg overflow-hidden">
+      <div 
+        ref={containerRef} 
+        className="relative w-full aspect-video bg-gray-900 rounded-lg overflow-hidden"
+      >
         <iframe
           src={embedUrl}
           className="w-full h-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           title={title}
+          loading="lazy"
         />
       </div>
     );
@@ -169,7 +240,12 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
 
   // Local Video Player dengan Custom Controls
   return (
-    <div ref={containerRef} className="relative w-full aspect-video bg-slate-900 rounded-lg overflow-hidden group">
+    <div 
+      ref={containerRef} 
+      className={`relative bg-gray-900 rounded-lg overflow-hidden group ${
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'w-full aspect-video'
+      }`}
+    >
       <video
         ref={videoRef}
         className="w-full h-full object-cover"
@@ -178,7 +254,9 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
         preload="metadata"
+        playsInline
       >
         <source src={embedUrl} type="video/mp4" />
         <source src={embedUrl} type="video/webm" />
@@ -187,7 +265,7 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
       </video>
 
       {/* Custom Video Controls */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 sm:p-4 
                     opacity-0 group-hover:opacity-100 transition-opacity duration-300">
         
         {/* Progress Bar */}
@@ -198,21 +276,28 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
             max={duration || 0}
             value={currentTime}
             onChange={handleSeek}
-            className="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer slider"
+            className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${
+                duration > 0 ? (currentTime / duration) * 100 : 0
+              }%, #64748b ${
+                duration > 0 ? (currentTime / duration) * 100 : 0
+              }%, #64748b 100%)`
+            }}
           />
         </div>
 
         {/* Controls */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <button
               onClick={togglePlay}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
             >
               {isPlaying ? (
-                <FaPause className="w-4 h-4 text-white" />
+                <FaPause className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
               ) : (
-                <FaPlay className="w-4 h-4 text-white ml-0.5" />
+                <FaPlay className="w-3 h-3 sm:w-4 sm:h-4 text-white ml-0.5" />
               )}
             </button>
 
@@ -221,13 +306,26 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
             >
               {isMuted ? (
-                <FaVolumeMute className="w-4 h-4 text-white" />
+                <FaVolumeMute className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
               ) : (
-                <FaVolumeUp className="w-4 h-4 text-white" />
+                <FaVolumeUp className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
               )}
             </button>
 
-            <span className="text-white text-sm">
+            {/* Volume Slider - Hidden on small screens */}
+            <div className="hidden sm:flex items-center">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={volume}
+                onChange={handleVolumeChange}
+                className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            <span className="text-white text-xs sm:text-sm">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
           </div>
@@ -237,9 +335,9 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
             className="p-2 hover:bg-white/20 rounded-lg transition-colors"
           >
             {isFullscreen ? (
-              <FaCompress className="w-4 h-4 text-white" />
+              <FaCompress className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             ) : (
-              <FaExpand className="w-4 h-4 text-white" />
+              <FaExpand className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             )}
           </button>
         </div>
@@ -250,41 +348,13 @@ export function VideoViewer({ embedUrl, title, isYouTube = false, thumbnail }: V
         <div className="absolute inset-0 flex items-center justify-center">
           <button
             onClick={togglePlay}
-            className="w-16 h-16 bg-blue-600/80 hover:bg-blue-600 rounded-full flex items-center justify-center
-                     transition-all duration-300 hover:scale-110"
+            className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600/80 hover:bg-blue-600 rounded-full 
+                     flex items-center justify-center transition-all duration-300 hover:scale-110"
           >
-            <FaPlay className="w-6 h-6 text-white ml-1" />
+            <FaPlay className="w-4 h-4 sm:w-6 sm:h-6 text-white ml-0.5 sm:ml-1" />
           </button>
         </div>
       )}
     </div>
   );
 }
-
-// Custom CSS untuk slider (tambahkan ke globals.css)
-const sliderStyles = `
-.slider {
-  background: linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(currentTime / duration) * 100}%, #64748b ${(currentTime / duration) * 100}%, #64748b 100%);
-}
-
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #3b82f6;
-  cursor: pointer;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-.slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #3b82f6;
-  cursor: pointer;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-`;

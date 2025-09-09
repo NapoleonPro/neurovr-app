@@ -68,14 +68,20 @@ export default function Navbar({ user }: NavbarProps) {
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
+  // Reordered navigation items following web standards:
+  // 1. Content/Learning materials first (Materi)
+  // 2. Interactive learning tools (Brain Journey, Neuro Track)
+  // 3. Assessment/Testing (Quiz)
+  // 4. Communication/Support (Chatbot, Discuss)
+  // 5. Utilities/Resources (Download) - often placed last
   const navItems = [
-    { name: 'Download', href: '/dashboard/download' },
     { name: 'Materi', href: '/dashboard/materi' },
-    { name: 'Neuro Track', href: '/dashboard/neuro-track' },
     { name: 'Brain Journey', href: '/dashboard/brain-journey' },
+    { name: 'Neuro Track', href: '/dashboard/neuro-track' },
     { name: 'Quiz', href: '/dashboard/quiz' },
     { name: 'Chatbot', href: '/dashboard/chatbot' },
     { name: 'Discuss', href: '/dashboard/discuss' },
+    { name: 'Download', href: '/dashboard/download' },
   ];
 
   return (

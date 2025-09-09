@@ -13,7 +13,7 @@ const learningMaterials = [
     type: 'PPT',
     thumbnailUrl: '/api/placeholder/400/250', // Placeholder image
     // Contoh real Google Slides embed URL:
-    embedUrl: 'https://docs.google.com/presentation/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/embed?start=false&loop=false&delayms=3000',
+    embedUrl: 'https://docs.google.com/presentation/d/e/2PACX-1vSkSUhoDQhy9lzTT7ozIp1Ni5ob3UKhFbidMLVQ_xw8dPShDX3Ym4YHu6nfyR9hMA/pub?start=false&loop=false&delayms=3000',
     downloadUrl: '/files/sistem-saraf.pptx',
     duration: null,
     description: 'Penjelasan lengkap tentang sistem saraf manusia dan fungsinya',
@@ -24,7 +24,7 @@ const learningMaterials = [
     type: 'Video',
     thumbnailUrl: '/api/placeholder/400/250', // Placeholder image
     // Contoh YouTube embed URL:
-    embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    embedUrl: 'https://youtu.be/hYzkwHfvwbo?si=pdN9N_8nJMUXdtvl',
     downloadUrl: null,
     duration: '3:07',
     description: 'Video animasi interaktif tentang cara kerja sistem saraf',

@@ -167,25 +167,25 @@ export default function DashboardLayout({
     };
   }, [router, supabase.auth, pathname]);
 
-  // Show loading while checking auth
+  // Show loading while checking auth - Mobile optimized
   if (loading || !authChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Memuat...</p>
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-slate-300 text-sm sm:text-base">Memuat...</p>
         </div>
       </div>
     );
   }
 
-  // No user state - show nothing while redirecting
+  // No user state - show nothing while redirecting - Mobile optimized
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Mengarahkan...</p>
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-slate-300 text-sm sm:text-base">Mengarahkan...</p>
         </div>
       </div>
     );
@@ -194,7 +194,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1E2A47] via-[#151B2E] to-[#0F1320] text-white">
       <Navbar user={user} />
-      <main>
+      <main className="relative">
         {children}
       </main>
     </div>

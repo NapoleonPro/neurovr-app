@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { FaUserCircle, FaChevronDown } from 'react-icons/fa';
+import { FaUserCircle, FaChevronDown, FaTimes, FaBars } from 'react-icons/fa';
 import { HiOutlineLogout, HiOutlineUser } from 'react-icons/hi';
 
 type NavbarProps = {
@@ -14,66 +14,69 @@ type NavbarProps = {
 export default function Navbar({ user }: NavbarProps) {
   const supabase = createClient();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
-    if (isLoggingOut) return; // Prevent multiple clicks
+    if (isLoggingOut) return;
     
     try {
       setIsLoggingOut(true);
       console.log('Starting logout process...');
       
-      // Close dropdown immediately
       setIsDropdownOpen(false);
+      setIsMobileMenuOpen(false);
       
-      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Logout error:', error);
-        // Even if there's an error, continue with logout
       }
       
       console.log('Logout completed, redirecting...');
       
-      // Small delay to ensure auth state is updated
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Use window.location for hard redirect to ensure clean state
       window.location.href = '/login';
       
     } catch (error) {
       console.error('Unexpected logout error:', error);
-      // Force redirect even on error
       window.location.href = '/login';
     } finally {
-      // This might not run if window.location.href is called, but just in case
       setIsLoggingOut(false);
     }
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, []);
+
+  // Close mobile menu on screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
-  // Reordered navigation items following web standards:
-  // 1. Content/Learning materials first (Materi)
-  // 2. Interactive learning tools (Brain Journey, Neuro Track)
-  // 3. Assessment/Testing (Quiz)
-  // 4. Communication/Support (Chatbot, Discuss)
-  // 5. Utilities/Resources (Download) - often placed last
   const navItems = [
     { name: 'Materi', href: '/dashboard/materi' },
     { name: 'Brain Journey', href: '/dashboard/brain-journey' },
@@ -86,19 +89,25 @@ export default function Navbar({ user }: NavbarProps) {
 
   return (
     <>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+             onClick={() => setIsMobileMenuOpen(false)} />
+      )}
+
       {/* Main Navbar */}
-      <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-auto max-w-4xl z-40">
-        <div className="bg-slate-800/90 backdrop-blur-xl rounded-full shadow-2xl border border-slate-700/50 px-8 py-4">
-          <div className="flex items-center justify-between space-x-8">
+      <nav className="fixed top-4 left-4 right-4 lg:top-6 lg:left-1/2 lg:-translate-x-1/2 lg:w-auto lg:max-w-4xl z-50">
+        <div className="bg-slate-800/95 backdrop-blur-xl rounded-2xl lg:rounded-full shadow-2xl border border-slate-700/50 px-4 lg:px-8 py-3 lg:py-4">
+          <div className="flex items-center justify-between">
             
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center">
-              <div className="text-white font-bold text-xl tracking-wider">
+              <div className="text-white font-bold text-lg lg:text-xl tracking-wider">
                 NEURO<span className="text-cyan-400">VR</span>
               </div>
             </Link>
 
-            {/* Navigation Items */}
+            {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-8">
               {navItems.map((item) => (
                 <Link
@@ -108,27 +117,101 @@ export default function Navbar({ user }: NavbarProps) {
                            relative group hover:scale-105"
                 >
                   {item.name}
-                  {/* Hover underline effect */}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 
                                  group-hover:w-full transition-all duration-300 ease-out"></span>
                 </Link>
               ))}
             </div>
 
-            {/* Mobile Menu Button (for smaller screens) */}
-            <div className="lg:hidden">
-              <button className="text-white p-2">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+            {/* Mobile Menu Button & Profile */}
+            <div className="flex items-center space-x-3 lg:hidden">
+              {/* Mobile Profile Button */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(!isDropdownOpen);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  disabled={isLoggingOut}
+                  className="flex items-center space-x-2 text-white bg-slate-700/50 hover:bg-slate-600/50 
+                           rounded-full px-3 py-2 transition-all duration-300 disabled:opacity-50"
+                >
+                  <div className="w-7 h-7 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full 
+                                flex items-center justify-center">
+                    {isLoggingOut ? (
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <FaUserCircle className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <FaChevronDown className={`w-3 h-3 transition-transform duration-300 
+                                           ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Mobile Profile Dropdown */}
+                {isDropdownOpen && !isLoggingOut && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-slate-800/95 backdrop-blur-xl rounded-xl 
+                                shadow-2xl border border-slate-700/50 py-2 animate-in slide-in-from-top-2 fade-in-0">
+                    
+                    <div className="px-4 py-3 border-b border-slate-700/50">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full 
+                                      flex items-center justify-center">
+                          <FaUserCircle className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">{userName}</p>
+                          <p className="text-slate-400 text-xs">{user?.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="py-1">
+                      <Link 
+                        href="/dashboard/profile" 
+                        className="flex items-center space-x-3 px-4 py-2 text-slate-300 hover:text-white 
+                                 hover:bg-slate-700/50 transition-all duration-200"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <HiOutlineUser className="w-4 h-4" />
+                        <span className="text-sm">Profile</span>
+                      </Link>
+                      
+                      <button
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="w-full flex items-center space-x-3 px-4 py-2 text-slate-300 hover:text-red-300 
+                                 hover:bg-red-500/10 transition-all duration-200"
+                      >
+                        <HiOutlineLogout className="w-4 h-4" />
+                        <span className="text-sm">Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(!isMobileMenuOpen);
+                  setIsDropdownOpen(false);
+                }}
+                className="p-2 text-white hover:text-cyan-400 transition-colors duration-300"
+              >
+                {isMobileMenuOpen ? (
+                  <FaTimes className="w-6 h-6" />
+                ) : (
+                  <FaBars className="w-6 h-6" />
+                )}
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Separate Profile Dropdown */}
-      <div className="fixed top-6 right-8 z-50" ref={dropdownRef}>
+      {/* Desktop Profile Dropdown (separate from main nav) */}
+      <div className="hidden lg:block fixed top-6 right-8 z-50" ref={dropdownRef}>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           disabled={isLoggingOut}
@@ -141,7 +224,6 @@ export default function Navbar({ user }: NavbarProps) {
             {isLoggingOut ? 'Logging out...' : userName}
           </span>
           
-          {/* Profile Avatar */}
           <div className="relative">
             <div className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full 
                           flex items-center justify-center ring-2 ring-slate-600 group-hover:ring-slate-500
@@ -152,25 +234,22 @@ export default function Navbar({ user }: NavbarProps) {
                 <FaUserCircle className="w-7 h-7 text-white" />
               )}
             </div>
-            {/* Online indicator */}
             {!isLoggingOut && (
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800
                             animate-pulse"></div>
             )}
           </div>
 
-          {/* Dropdown Arrow */}
           <FaChevronDown className={`w-3 h-3 text-slate-400 transition-all duration-300 
                                    ${isDropdownOpen ? 'rotate-180 text-cyan-400' : 'group-hover:text-slate-300'}`} />
         </button>
 
-        {/* Dropdown Menu */}
+        {/* Desktop Dropdown Menu */}
         {isDropdownOpen && !isLoggingOut && (
           <div className="absolute top-full right-0 mt-3 w-64 bg-slate-800/95 backdrop-blur-xl rounded-2xl 
                         shadow-2xl border border-slate-700/50 py-2 transform transition-all duration-300
                         animate-in slide-in-from-top-2 fade-in-0">
             
-            {/* User Info Header */}
             <div className="px-5 py-4 border-b border-slate-700/50">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full 
@@ -188,7 +267,6 @@ export default function Navbar({ user }: NavbarProps) {
               </div>
             </div>
 
-            {/* Menu Items */}
             <div className="py-2">
               <Link 
                 href="/dashboard/profile" 
@@ -223,17 +301,37 @@ export default function Navbar({ user }: NavbarProps) {
                     {isLoggingOut ? 'Logging out...' : 'Log out'}
                   </span>
                 </div>
-                {!isLoggingOut && (
-                  <svg className="w-4 h-4 text-slate-400 group-hover:text-red-400 transition-colors" 
-                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                )}
               </button>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Mobile Menu Panel */}
+      <div 
+        ref={mobileMenuRef}
+        className={`lg:hidden fixed top-20 left-4 right-4 bg-slate-800/95 backdrop-blur-xl rounded-2xl 
+                   shadow-2xl border border-slate-700/50 z-45 transition-all duration-300 
+                   ${isMobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}
+      >
+        <div className="py-4">
+          {navItems.map((item, index) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center justify-between px-6 py-4 text-slate-300 hover:text-white 
+                       hover:bg-slate-700/50 transition-all duration-200 group border-b border-slate-700/30 last:border-b-0"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <span className="font-medium">{item.name}</span>
+              <svg className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" 
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          ))}
+        </div>
       </div>
     </>
   );

@@ -1,227 +1,240 @@
-// src/app/dashboard/game/mind-match/MindMatchClient.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { saveGameResult } from './actions'; // Impor si "kurir"
-import { HiAcademicCap, HiSparkles } from 'react-icons/hi';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { FaPlay, FaSyncAlt, FaTrophy, FaHome } from 'react-icons/fa';
 
-// Tipe data untuk props yang diterima dari server
-type GameDataItem = {
-    id: number;
-    term: string;
-    definition: string;
-};
+// Definisikan tipe untuk data game yang diterima dari props
+interface GameDataItem {
+  id: number;
+  term: string;
+  definition: string;
+}
 
-type MindMatchClientProps = {
-    gameData: GameDataItem[];
-};
+interface MindMatchClientProps {
+  gameData: GameDataItem[];
+}
 
-// Helper function untuk mengacak array
-const shuffleArray = (array: any[]) => {
-  let currentIndex = array.length, randomIndex;
-  while (currentIndex !== 0) {
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-  }
-  return array;
-};
-
-type Term = { id: number; term: string };
-type Definition = { id: number; definition: string };
-
-export default function MindMatchClient({ gameData }: MindMatchClientProps) {
-  const [terms, setTerms] = useState<Term[]>([]);
-  const [definitions, setDefinitions] = useState<Definition[]>([]);
-  const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
-  const [matches, setMatches] = useState<Record<number, number>>({});
-  
-  const [showResults, setShowResults] = useState(false);
+export default function MindMatchClient({ gameData: initialGameData }: MindMatchClientProps) {
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'completed'>('menu');
+  const [cards, setCards] = useState<any[]>([]);
+  const [selectedCards, setSelectedCards] = useState<number[]>([]);
+  const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
   const [score, setScore] = useState(0);
-  const [achievementUnlocked, setAchievementUnlocked] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
-  useEffect(() => {
-    const gameTerms = gameData.map(item => ({ id: item.id, term: item.term }));
-    const gameDefinitions = gameData.map(item => ({ id: item.id, definition: item.definition }));
+  const shuffleAndPrepareCards = () => {
+    const terms = initialGameData.map(item => ({ ...item, type: 'term' }));
+    const definitions = initialGameData.map(item => ({ ...item, type: 'definition' }));
+    const allCards = [...terms, ...definitions];
     
-    setTerms(gameTerms);
-    setDefinitions(shuffleArray(gameDefinitions));
-  }, [gameData]);
+    // Shuffle cards
+    for (let i = allCards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
+    }
+    
+    setCards(allCards.map((card, index) => ({ ...card, index })));
+  };
 
-  const handleTermClick = (termId: number) => {
-    if (Object.keys(matches).map(Number).includes(termId)) {
-      const newMatches = { ...matches };
-      delete newMatches[termId];
-      setMatches(newMatches);
+  const handleCardClick = (cardIndex: number) => {
+    if (selectedCards.length === 2 || matchedPairs.includes(cards[cardIndex].id) || selectedCards.includes(cardIndex)) {
       return;
     }
-    setSelectedTermId(termId);
-  };
 
-  const handleDefinitionClick = (definitionId: number) => {
-    if (selectedTermId !== null) {
-      if (Object.values(matches).includes(definitionId)) {
-        const oldTermId = Object.keys(matches).find(key => matches[Number(key)] === definitionId);
-        if (oldTermId) {
-          const newMatches = { ...matches };
-          delete newMatches[Number(oldTermId)];
-          setMatches(newMatches);
-        }
-      }
-      setMatches(prev => ({ ...prev, [selectedTermId]: definitionId }));
-      setSelectedTermId(null);
-    }
-  };
+    const newSelectedCards = [...selectedCards, cardIndex];
+    setSelectedCards(newSelectedCards);
 
-  const handleSubmit = async () => { // Jadikan fungsi ini async
-    let correctMatches = 0;
-    Object.keys(matches).forEach(termIdStr => {
-      const termId = Number(termIdStr);
-      const definitionId = matches[termId];
-      if (termId === definitionId) {
-        correctMatches++;
-      }
-    });
-    
-    const finalScore = Math.round((correctMatches / terms.length) * 100);
-    setScore(finalScore);
+    if (newSelectedCards.length === 2) {
+      setAttempts(prev => prev + 1);
+      const card1 = cards[newSelectedCards[0]];
+      const card2 = cards[newSelectedCards[1]];
 
-    let unlockedAchievement: string | null = null;
-    if (finalScore === 100) {
-      setAchievementUnlocked(true);
-      unlockedAchievement = 'Brain Master'; // Nama achievement yang akan disimpan
-    }
-    
-    setShowResults(true);
-
-    // Kirim hasil ke server untuk disimpan di database
-    try {
-      const result = await saveGameResult(finalScore, unlockedAchievement);
-      if (result.error) {
-        console.error("Gagal menyimpan progres:", result.error);
+      if (card1.id === card2.id && card1.type !== card2.type) {
+        setMatchedPairs(prev => [...prev, card1.id]);
+        setScore(prev => prev + 10);
+        setSelectedCards([]);
       } else {
-        console.log("Progres berhasil disimpan ke database!");
+        setTimeout(() => {
+          setSelectedCards([]);
+        }, 1000);
       }
-    } catch (e) {
-      console.error("Terjadi kesalahan saat menyimpan progres:", e);
     }
   };
+  
+  useEffect(() => {
+    if (matchedPairs.length === initialGameData.length) {
+      setTimeout(() => setGameState('completed'), 500);
+    }
+  }, [matchedPairs, initialGameData.length]);
 
-  const handlePlayAgain = () => {
-    setMatches({});
-    setSelectedTermId(null);
-    setShowResults(false);
-    setAchievementUnlocked(false);
-    setDefinitions(shuffleArray([...definitions]));
+  const startGame = () => {
+    setGameState('playing');
+    setScore(0);
+    setAttempts(0);
+    setMatchedPairs([]);
+    setSelectedCards([]);
+    shuffleAndPrepareCards();
   };
 
-  return (
-    <div className="min-h-screen p-4 sm:p-8" style={{ background: 'url(/bg.jpeg) center center / cover no-repeat fixed' }}>
-      <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-6 sm:p-8 max-w-6xl mx-auto">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white text-center mb-8 flex items-center justify-center gap-3">
-          <HiAcademicCap className="text-blue-400" />
-          Mind Match Challenge
-        </h1>
+  const resetGame = () => {
+    setScore(0);
+    setAttempts(0);
+    setMatchedPairs([]);
+    setSelectedCards([]);
+    shuffleAndPrepareCards();
+  };
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-3">
-            {terms.map(term => {
-              const isSelected = selectedTermId === term.id;
-              const isMatched = Object.keys(matches).map(Number).includes(term.id);
-              return (
-                <button
-                  key={term.id}
-                  onClick={() => handleTermClick(term.id)}
-                  className={`w-full p-4 text-left rounded-lg transition-all duration-200 border-2
-                              ${isSelected ? 'bg-blue-500/30 border-blue-400 scale-105 shadow-lg' : ''}
-                              ${isMatched ? 'bg-green-500/30 border-green-400' : 'bg-slate-800/70 border-slate-700 hover:bg-slate-700/90'}
-                              `}
-                >
-                  {term.term}
-                </button>
-              );
-            })}
-          </div>
+  const backToMenu = () => {
+    setGameState('menu');
+  };
 
-          <div className="space-y-3">
-            {definitions.map(def => {
-              const isMatched = Object.values(matches).includes(def.id);
-              return (
-                <button
-                  key={def.id}
-                  onClick={() => handleDefinitionClick(def.id)}
-                  disabled={!selectedTermId}
-                  className={`w-full p-4 text-left rounded-lg transition-all duration-200 border-2
-                              ${isMatched ? 'bg-green-500/30 border-green-400' : 'bg-slate-800/70 border-slate-700'}
-                              ${selectedTermId ? 'cursor-pointer hover:bg-slate-700/90' : 'cursor-not-allowed opacity-60'}
-                              `}
-                >
-                  {def.definition}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="text-center mt-10">
-          <button
-            onClick={handleSubmit}
-            disabled={Object.keys(matches).length !== terms.length}
-            className="px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-lg
-                       hover:scale-105 transition-transform duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                       disabled:hover:scale-100 shadow-lg"
+  // Menu Screen
+  if (gameState === 'menu') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 sm:p-12 border border-white/20 max-w-md mx-auto"
           >
-            Kirim Jawaban
-          </button>
+            <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaTrophy className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">Mind Match Game</h1>
+            <p className="text-gray-300 mb-8 leading-relaxed">
+              Cocokkan istilah dengan definisinya untuk menguji pengetahuanmu tentang sistem saraf!
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={startGame}
+              className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-lg"
+            >
+              <FaPlay className="w-5 h-5" />
+              <span>Mulai Bermain</span>
+            </motion.button>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // Completed Screen
+  if (gameState === 'completed') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-900 via-emerald-900 to-teal-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 sm:p-12 border border-white/20 max-w-md mx-auto"
+          >
+            <motion.div
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="w-24 h-24 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-6"
+            >
+              <FaTrophy className="w-12 h-12 text-white" />
+            </motion.div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">Selamat! 🎉</h1>
+            <div className="mb-8">
+              <p className="text-gray-300 mb-4">Game berhasil diselesaikan!</p>
+              <div className="space-y-2 text-white">
+                <p><span className="text-yellow-400">Skor:</span> {score} poin</p>
+                <p><span className="text-yellow-400">Percobaan:</span> {attempts} kali</p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={startGame}
+                className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300"
+              >
+                <FaSyncAlt className="w-4 h-4" />
+                <span>Main Lagi</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={backToMenu}
+                className="inline-flex items-center justify-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300"
+              >
+                <FaHome className="w-4 h-4" />
+                <span>Menu Utama</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // Game Screen
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20">
+        <div className="text-center sm:text-left mb-4 sm:mb-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Mind Match Game</h2>
+          <p className="text-gray-300 text-sm">Cocokkan istilah dengan definisinya.</p>
+        </div>
+        <div className="flex items-center space-x-6 text-white">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-yellow-400">{score}</div>
+            <div className="text-xs text-gray-300">Skor</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-400">{attempts}</div>
+            <div className="text-xs text-gray-300">Percobaan</div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={resetGame}
+            className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-200"
+            title="Reset Game"
+          >
+            <FaSyncAlt className="w-5 h-5" />
+          </motion.button>
         </div>
       </div>
 
-      <AnimatePresence>
-        {showResults && (
+      {/* Game Area */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {cards.map((card, index) => (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            key={index}
+            onClick={() => handleCardClick(index)}
+            className={`relative w-full h-40 rounded-lg cursor-pointer transition-transform duration-500`}
+            style={{ transformStyle: 'preserve-3d' }}
+            animate={{ rotateY: selectedCards.includes(index) || matchedPairs.includes(card.id) ? 180 : 0 }}
           >
-            <motion.div
-              initial={{ scale: 0.7, y: 50 }}
-              animate={{ scale: 1, y: 0 }}
-              className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center"
-            >
-              <h2 className="text-3xl font-bold text-white mb-4">Hasil Kuis</h2>
-              <p className="text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-6">
-                {score}
-              </p>
-              
-              <AnimatePresence>
-                {achievementUnlocked && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mb-6 p-4 bg-yellow-500/20 border border-yellow-400/50 rounded-lg flex items-center justify-center gap-3"
-                  >
-                    <HiSparkles className="text-yellow-300 w-6 h-6" />
-                    <div className="text-left">
-                      <h3 className="font-bold text-yellow-300">Achievement Unlocked!</h3>
-                      <p className="text-sm text-yellow-400/80">Brain Master</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <button
-                onClick={handlePlayAgain}
-                className="mt-4 px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Coba Lagi
-              </button>
-            </motion.div>
+            <div className="absolute w-full h-full bg-white/10 backdrop-blur-lg rounded-lg flex items-center justify-center text-center p-4 text-white font-semibold" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+              {card.type === 'term' ? card.term : card.definition}
+            </div>
+            <div className="absolute w-full h-full bg-purple-600 rounded-lg" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+            </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+        ))}
+      </div>
+
+      {/* Back Button */}
+      <div className="mt-6 text-center">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={backToMenu}
+          className="inline-flex items-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300"
+        >
+          <FaHome className="w-4 h-4" />
+          <span>Kembali ke Menu</span>
+        </motion.button>
+      </div>
     </div>
   );
 }

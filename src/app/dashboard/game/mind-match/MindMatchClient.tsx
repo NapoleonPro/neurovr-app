@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPlay, FaSyncAlt, FaTrophy, FaHome, FaStar, FaBrain, FaFire, FaCheckCircle, FaTimes } from 'react-icons/fa';
+import { FaPlay, FaSyncAlt, FaTrophy, FaHome, FaStar, FaBrain, FaCheckCircle, FaTimes, FaCheck } from 'react-icons/fa';
+import { saveGameResult } from './actions';
 
 interface GameDataItem {
   id: number;
@@ -18,19 +19,25 @@ interface DropSlot {
   id: number;
   definition: string;
   assignedTermId: number | null;
-  isCorrect: boolean | null;
+  correctTermId: number;
+}
+
+interface GameResult {
+  slotId: number;
+  isCorrect: boolean;
+  userAnswer: string;
+  correctAnswer: string;
 }
 
 export default function MindMatchClient({ gameData }: MindMatchClientProps) {
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'completed'>('menu');
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'results' | 'completed'>('menu');
   const [availableTerms, setAvailableTerms] = useState<GameDataItem[]>([]);
   const [dropSlots, setDropSlots] = useState<DropSlot[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<GameDataItem | null>(null);
   const [draggedTerm, setDraggedTerm] = useState<GameDataItem | null>(null);
+  const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [score, setScore] = useState(0);
-  const [attempts, setAttempts] = useState(0);
-  const [completedSlots, setCompletedSlots] = useState(0);
-  const [showFeedback, setShowFeedback] = useState<{slotId: number, isCorrect: boolean} | null>(null);
+  const [saveStatus, setSaveStatus] = useState<string>('');
 
   const shuffleArray = (array: any[]) => {
     const shuffled = [...array];
@@ -44,11 +51,10 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
   const startGame = () => {
     setGameState('playing');
     setScore(0);
-    setAttempts(0);
-    setCompletedSlots(0);
     setSelectedTerm(null);
     setDraggedTerm(null);
-    setShowFeedback(null);
+    setGameResults([]);
+    setSaveStatus('');
     
     // Shuffle terms untuk urutan acak
     const shuffledTerms = shuffleArray(gameData);
@@ -60,15 +66,14 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
       id: index,
       definition: item.definition,
       assignedTermId: null,
-      isCorrect: null,
-      correctTermId: item.id // Menyimpan ID term yang benar untuk slot ini
+      correctTermId: item.id
     }));
     setDropSlots(slots);
   };
 
   const handleTermClick = (term: GameDataItem) => {
     // Jika term sudah digunakan, jangan bisa dipilih
-    const isTermUsed = dropSlots.some(slot => slot.assignedTermId === term.id && slot.isCorrect === true);
+    const isTermUsed = dropSlots.some(slot => slot.assignedTermId === term.id);
     if (isTermUsed) return;
     
     setSelectedTerm(selectedTerm?.id === term.id ? null : term);
@@ -78,7 +83,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
     if (!selectedTerm) return;
     
     const slot = dropSlots.find(s => s.id === slotId);
-    if (!slot || slot.isCorrect === true) return;
+    if (!slot) return;
     
     assignTermToSlot(selectedTerm, slotId);
     setSelectedTerm(null);
@@ -86,7 +91,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
 
   const handleDragStart = (e: React.DragEvent, term: GameDataItem) => {
     // Cek apakah term sudah digunakan
-    const isTermUsed = dropSlots.some(slot => slot.assignedTermId === term.id && slot.isCorrect === true);
+    const isTermUsed = dropSlots.some(slot => slot.assignedTermId === term.id);
     if (isTermUsed) {
       e.preventDefault();
       return;
@@ -107,71 +112,86 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
     if (!draggedTerm) return;
     
     const slot = dropSlots.find(s => s.id === slotId);
-    if (!slot || slot.isCorrect === true) return;
+    if (!slot) return;
     
     assignTermToSlot(draggedTerm, slotId);
     setDraggedTerm(null);
   };
 
   const assignTermToSlot = (term: GameDataItem, slotId: number) => {
-    setAttempts(prev => prev + 1);
-    
-    const slot = dropSlots.find(s => s.id === slotId);
-    if (!slot) return;
-    
-    // Cari term yang benar untuk slot ini
-    const correctTerm = gameData.find(item => item.definition === slot.definition);
-    const isCorrect = correctTerm?.id === term.id;
-    
-    // Update slot
+    // Update slot dengan term yang dipilih
     const updatedSlots = dropSlots.map(s => {
       if (s.id === slotId) {
         return {
           ...s,
-          assignedTermId: term.id,
-          isCorrect: isCorrect
+          assignedTermId: term.id
         };
       }
       return s;
     });
     
     setDropSlots(updatedSlots);
-    
-    // Show feedback
-    setShowFeedback({ slotId, isCorrect });
-    setTimeout(() => setShowFeedback(null), 1500);
-    
-    if (isCorrect) {
-      setScore(prev => prev + 100);
-      setCompletedSlots(prev => prev + 1);
-    } else {
-      // Jika salah, bisa dicoba lagi dengan mengosongkan slot setelah delay
-      setTimeout(() => {
-        setDropSlots(prevSlots => 
-          prevSlots.map(s => 
-            s.id === slotId && !s.isCorrect ? 
-            { ...s, assignedTermId: null, isCorrect: null } : s
-          )
-        );
-      }, 1500);
-    }
   };
 
-  // Fungsi untuk mengosongkan slot yang salah
+  // Fungsi untuk mengosongkan slot
   const clearSlot = (slotId: number) => {
     setDropSlots(prevSlots => 
       prevSlots.map(slot => 
         slot.id === slotId ? 
-        { ...slot, assignedTermId: null, isCorrect: null } : slot
+        { ...slot, assignedTermId: null } : slot
       )
     );
   };
 
-  useEffect(() => {
-    if (completedSlots === gameData.length && gameData.length > 0) {
-      setTimeout(() => setGameState('completed'), 1000);
+  // Cek apakah semua slot sudah terisi
+  const areAllSlotsFilled = () => {
+    return dropSlots.every(slot => slot.assignedTermId !== null);
+  };
+
+  // Submit jawaban dan tampilkan hasil
+  const submitAnswers = async () => {
+    const results: GameResult[] = dropSlots.map(slot => {
+      const userTerm = availableTerms.find(term => term.id === slot.assignedTermId);
+      const correctTerm = gameData.find(term => term.id === slot.correctTermId);
+      const isCorrect = slot.assignedTermId === slot.correctTermId;
+      
+      return {
+        slotId: slot.id,
+        isCorrect,
+        userAnswer: userTerm?.term || '',
+        correctAnswer: correctTerm?.term || ''
+      };
+    });
+    
+    setGameResults(results);
+    
+    // Hitung skor
+    const correctAnswers = results.filter(r => r.isCorrect).length;
+    const finalScore = Math.round((correctAnswers / gameData.length) * 100);
+    setScore(finalScore);
+    
+    // Tentukan achievement
+    let achievement = null;
+    if (finalScore >= 90) achievement = "Perfect Master";
+    else if (finalScore >= 75) achievement = "Brain Expert";
+    else if (finalScore >= 50) achievement = "Good Learner";
+    
+    setGameState('results');
+    
+    // Simpan hasil ke database
+    try {
+      setSaveStatus('Menyimpan...');
+      const result = await saveGameResult(finalScore, achievement);
+      if (result.success) {
+        setSaveStatus('Tersimpan ✓');
+      } else {
+        setSaveStatus('Gagal menyimpan');
+      }
+    } catch (error) {
+      setSaveStatus('Error saat menyimpan');
+      console.error('Error saving game result:', error);
     }
-  }, [completedSlots, gameData.length]);
+  };
 
   const resetGame = () => {
     startGame();
@@ -181,15 +201,9 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
     setGameState('menu');
   };
 
-  const getAccuracy = () => {
-    if (attempts === 0) return 100;
-    return Math.round((completedSlots / attempts) * 100);
-  };
-
   const getRating = () => {
-    const accuracy = getAccuracy();
-    if (accuracy >= 90) return { stars: 3, message: "Sempurna! 🏆", color: "from-yellow-400 to-orange-400" };
-    if (accuracy >= 75) return { stars: 2, message: "Bagus Sekali! 🌟", color: "from-blue-400 to-purple-400" };
+    if (score >= 90) return { stars: 3, message: "Sempurna! 🏆", color: "from-yellow-400 to-orange-400" };
+    if (score >= 75) return { stars: 2, message: "Bagus Sekali! 🌟", color: "from-blue-400 to-purple-400" };
     return { stars: 1, message: "Terus Berlatih! 💪", color: "from-green-400 to-blue-400" };
   };
 
@@ -252,7 +266,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
           >
-            Pilih istilah dan drag ke kotak definisi yang tepat. Cocokkan semua untuk menyelesaikan puzzle!
+            Isi semua kotak dengan istilah yang tepat, lalu submit untuk melihat hasil!
           </motion.p>
           
           <motion.button
@@ -275,106 +289,149 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
     );
   }
 
-  // Completed Screen
-  if (gameState === 'completed') {
+  // Results Screen
+  if (gameState === 'results') {
     const rating = getRating();
+    const correctCount = gameResults.filter(r => r.isCorrect).length;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Success Animation */}
-        <AnimatePresence>
-          {[...Array(25)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-4 h-4 bg-yellow-400 rounded-full"
-              style={{
-                left: Math.random() * 100 + '%',
-                top: Math.random() * 100 + '%',
-              }}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ 
-                scale: [0, 1, 0],
-                opacity: [0, 1, 0],
-                y: [-100, -300],
-                x: [0, (Math.random() - 0.5) * 200]
-              }}
-              transition={{
-                duration: 3,
-                delay: Math.random() * 2,
-                repeat: Infinity,
-                repeatDelay: 4
-              }}
-            />
-          ))}
-        </AnimatePresence>
-
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0, rotateY: 180 }}
-          animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-          transition={{ duration: 0.8, type: "spring" }}
-          className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 sm:p-12 border border-white/20 max-w-lg mx-auto shadow-2xl text-center"
-        >
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 p-4">
+        <div className="container mx-auto max-w-4xl">
+          {/* Header Results */}
           <motion.div
-            animate={{ 
-              rotate: [0, 15, -15, 0],
-              scale: [1, 1.3, 1]
-            }}
-            transition={{ 
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className={`w-32 h-32 bg-gradient-to-r ${rating.color} rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl`}
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="text-center mb-8 bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20"
           >
-            <FaTrophy className="w-16 h-16 text-white" />
+            <motion.div
+              animate={{ 
+                rotate: [0, 15, -15, 0],
+                scale: [1, 1.2, 1]
+              }}
+              transition={{ 
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className={`w-24 h-24 bg-gradient-to-r ${rating.color} rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl`}
+            >
+              <FaTrophy className="w-12 h-12 text-white" />
+            </motion.div>
+            
+            <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-300 mb-4">
+              {rating.message}
+            </h1>
+            
+            {/* Star Rating */}
+            <div className="flex justify-center gap-2 mb-6">
+              {[...Array(3)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.3 + i * 0.1, type: "spring" }}
+                >
+                  <FaStar className={`w-8 h-8 ${i < rating.stars ? 'text-yellow-400' : 'text-gray-500'}`} />
+                </motion.div>
+              ))}
+            </div>
+            
+            {/* Score Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="bg-white/20 rounded-xl p-4">
+                <div className="text-3xl font-bold text-yellow-400">{score}</div>
+                <div className="text-sm text-gray-300">Skor</div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-4">
+                <div className="text-3xl font-bold text-green-400">{correctCount}/{gameData.length}</div>
+                <div className="text-sm text-gray-300">Benar</div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-4">
+                <div className="text-3xl font-bold text-blue-400">{score}%</div>
+                <div className="text-sm text-gray-300">Akurasi</div>
+              </div>
+            </div>
+            
+            {/* Save Status */}
+            {saveStatus && (
+              <div className="text-center text-sm text-gray-300 mb-4">
+                {saveStatus}
+              </div>
+            )}
           </motion.div>
-          
-          <motion.h1 
-            className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-300 mb-4"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
+
+          {/* Detailed Results */}
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 mb-6"
           >
-            {rating.message}
-          </motion.h1>
-          
-          {/* Star Rating */}
-          <div className="flex justify-center gap-2 mb-6">
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.3 + i * 0.1, type: "spring" }}
-              >
-                <FaStar className={`w-8 h-8 ${i < rating.stars ? 'text-yellow-400' : 'text-gray-500'}`} />
-              </motion.div>
-            ))}
-          </div>
-          
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-white/20 rounded-xl p-4">
-              <div className="text-2xl font-bold text-yellow-400">{score}</div>
-              <div className="text-xs text-gray-300">Poin</div>
+            <h3 className="text-2xl font-bold text-white mb-6 text-center">Hasil Jawaban</h3>
+            
+            <div className="grid gap-4">
+              {gameResults.map((result, index) => {
+                const slot = dropSlots.find(s => s.id === result.slotId);
+                
+                return (
+                  <motion.div
+                    key={result.slotId}
+                    initial={{ x: -50, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 * index }}
+                    className={`p-4 rounded-xl border-2 ${
+                      result.isCorrect 
+                        ? 'bg-green-500/20 border-green-400' 
+                        : 'bg-red-500/20 border-red-400'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-gray-200 text-sm mb-2">
+                          <strong>Definisi:</strong> {slot?.definition}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <span className="text-xs text-gray-400">Jawaban Anda:</span>
+                            <div className={`font-semibold ${result.isCorrect ? 'text-green-300' : 'text-red-300'}`}>
+                              {result.userAnswer}
+                            </div>
+                          </div>
+                          {!result.isCorrect && (
+                            <div>
+                              <span className="text-xs text-gray-400">Jawaban Benar:</span>
+                              <div className="font-semibold text-green-300">
+                                {result.correctAnswer}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        result.isCorrect ? 'bg-green-500' : 'bg-red-500'
+                      }`}>
+                        {result.isCorrect ? (
+                          <FaCheck className="w-4 h-4 text-white" />
+                        ) : (
+                          <FaTimes className="w-4 h-4 text-white" />
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
-            <div className="bg-white/20 rounded-xl p-4">
-              <div className="text-2xl font-bold text-green-400">{getAccuracy()}%</div>
-              <div className="text-xs text-gray-300">Akurasi</div>
-            </div>
-            <div className="bg-white/20 rounded-xl p-4">
-              <div className="text-2xl font-bold text-blue-400">{attempts}</div>
-              <div className="text-xs text-gray-300">Percobaan</div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          </motion.div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={resetGame}
-              className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+              className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold transition-all duration-300"
             >
-              <FaSyncAlt className="w-4 h-4" />
+              <FaSyncAlt className="w-5 h-5" />
               <span>Main Lagi</span>
             </motion.button>
             
@@ -382,13 +439,13 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={backToMenu}
-              className="inline-flex items-center justify-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300"
+              className="inline-flex items-center justify-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-8 py-4 rounded-xl font-bold transition-all duration-300"
             >
-              <FaHome className="w-4 h-4" />
+              <FaHome className="w-5 h-5" />
               <span>Menu Utama</span>
             </motion.button>
           </div>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -412,26 +469,10 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
         
         <div className="flex items-center space-x-6 text-white">
           <div className="text-center">
-            <motion.div 
-              className="text-3xl font-bold text-yellow-400"
-              key={score}
-              initial={{ scale: 1.5 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", duration: 0.3 }}
-            >
-              {score}
-            </motion.div>
-            <div className="text-xs text-gray-300">Skor</div>
-          </div>
-          
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-400">{completedSlots}/{gameData.length}</div>
-            <div className="text-xs text-gray-300">Selesai</div>
-          </div>
-          
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-400">{getAccuracy()}%</div>
-            <div className="text-xs text-gray-300">Akurasi</div>
+            <div className="text-2xl font-bold text-blue-400">
+              {dropSlots.filter(slot => slot.assignedTermId !== null).length}/{gameData.length}
+            </div>
+            <div className="text-xs text-gray-300">Terisi</div>
           </div>
           
           <motion.button
@@ -461,7 +502,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
           
           <div className="grid grid-cols-2 gap-3">
             {availableTerms.map((term) => {
-              const isUsed = dropSlots.some(slot => slot.assignedTermId === term.id && slot.isCorrect === true);
+              const isUsed = dropSlots.some(slot => slot.assignedTermId === term.id);
               const isSelected = selectedTerm?.id === term.id;
               const isDragged = draggedTerm?.id === term.id;
               
@@ -523,7 +564,6 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
           <div className="space-y-4">
             {dropSlots.map((slot) => {
               const assignedTerm = availableTerms.find(term => term.id === slot.assignedTermId);
-              const feedback = showFeedback?.slotId === slot.id ? showFeedback : null;
               
               return (
                 <motion.div
@@ -533,16 +573,14 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
                   onDrop={(e) => handleDrop(e, slot.id)}
                   className={`
                     relative p-4 rounded-xl border-2 border-dashed min-h-[100px] transition-all duration-300
-                    ${slot.isCorrect === true 
-                      ? 'bg-green-500/20 border-green-400 cursor-default' 
-                      : slot.isCorrect === false 
-                        ? 'bg-red-500/20 border-red-400' 
-                        : selectedTerm 
-                          ? 'bg-blue-500/20 border-blue-400 cursor-pointer hover:bg-blue-500/30' 
-                          : 'bg-white/5 border-cyan-400/50 hover:border-cyan-400'
+                    ${assignedTerm 
+                      ? 'bg-blue-500/20 border-blue-400' 
+                      : selectedTerm 
+                        ? 'bg-blue-500/20 border-blue-400 cursor-pointer hover:bg-blue-500/30' 
+                        : 'bg-white/5 border-cyan-400/50 hover:border-cyan-400'
                     }
                   `}
-                  whileHover={slot.isCorrect !== true ? { scale: 1.02 } : {}}
+                  whileHover={!assignedTerm ? { scale: 1.02 } : {}}
                 >
                   {/* Definition Text */}
                   <div className="text-gray-200 text-sm mb-2">
@@ -553,11 +591,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
                   <div className={`
                     mt-3 p-3 rounded-lg border-2 border-dashed transition-all duration-300
                     ${assignedTerm 
-                      ? slot.isCorrect === true 
-                        ? 'bg-green-600/30 border-green-500 text-green-200' 
-                        : slot.isCorrect === false 
-                          ? 'bg-red-600/30 border-red-500 text-red-200' 
-                          : 'bg-blue-600/30 border-blue-500 text-blue-200'
+                      ? 'bg-blue-600/30 border-blue-500 text-blue-200'
                       : 'bg-white/5 border-gray-500 text-gray-400'
                     }
                   `}>
@@ -566,46 +600,20 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
                     </div>
                   </div>
                   
-                  {/* Success/Error Icons */}
-                  {slot.isCorrect === true && (
-                    <motion.div
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"
-                    >
-                      <FaCheckCircle className="text-white text-xs" />
-                    </motion.div>
-                  )}
-                  
-                  {slot.isCorrect === false && (
-                    <motion.div
+                  {/* Clear Button */}
+                  {assignedTerm && (
+                    <motion.button
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         clearSlot(slot.id);
                       }}
+                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-red-600"
                       title="Klik untuk mengosongkan"
                     >
                       <FaTimes className="text-white text-xs" />
-                    </motion.div>
-                  )}
-                  
-                  {/* Feedback Animation */}
-                  {feedback && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className={`absolute inset-0 rounded-xl flex items-center justify-center font-bold text-lg ${
-                        feedback.isCorrect 
-                          ? 'bg-green-500/40 text-green-100' 
-                          : 'bg-red-500/40 text-red-100'
-                      }`}
-                    >
-                      {feedback.isCorrect ? '✓ Benar!' : '✗ Salah!'}
-                    </motion.div>
+                    </motion.button>
                   )}
                 </motion.div>
               );
@@ -614,22 +622,51 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
         </motion.div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Submit Button */}
       <motion.div 
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6 }}
-        className="mt-8 bg-white/10 backdrop-blur-sm rounded-2xl p-6"
+        className="mt-8 text-center"
+      >
+        <motion.button
+          whileHover={{ scale: areAllSlotsFilled() ? 1.05 : 1 }}
+          whileTap={{ scale: areAllSlotsFilled() ? 0.95 : 1 }}
+          onClick={submitAnswers}
+          disabled={!areAllSlotsFilled()}
+          className={`
+            inline-flex items-center space-x-3 px-12 py-4 rounded-2xl font-bold text-lg transition-all duration-300 shadow-2xl
+            ${areAllSlotsFilled() 
+              ? 'bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 text-white cursor-pointer' 
+              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            }
+          `}
+        >
+          <FaCheck className="w-5 h-5" />
+          <span>
+            {areAllSlotsFilled() ? 'Submit Jawaban' : `Isi Semua (${dropSlots.filter(slot => slot.assignedTermId !== null).length}/${gameData.length})`}
+          </span>
+        </motion.button>
+      </motion.div>
+
+      {/* Progress Bar */}
+      <motion.div 
+        initial={{ y: 50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.8 }}
+        className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-6"
       >
         <div className="flex justify-between items-center mb-2">
           <span className="text-white font-medium">Kemajuan</span>
-          <span className="text-white font-bold">{completedSlots}/{gameData.length}</span>
+          <span className="text-white font-bold">
+            {dropSlots.filter(slot => slot.assignedTermId !== null).length}/{gameData.length}
+          </span>
         </div>
         <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-full"
             initial={{ width: 0 }}
-            animate={{ width: `${gameData.length > 0 ? (completedSlots / gameData.length) * 100 : 0}%` }}
+            animate={{ width: `${gameData.length > 0 ? (dropSlots.filter(slot => slot.assignedTermId !== null).length / gameData.length) * 100 : 0}%` }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           />
         </div>

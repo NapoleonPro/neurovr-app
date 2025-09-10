@@ -5,8 +5,22 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { FaPlay, FaFileDownload, FaEye, FaTimes, FaClock, FaBook, FaVideo, FaGraduationCap } from 'react-icons/fa';
 
+interface LearningMaterial {
+  id: number;
+  title: string;
+  type: 'PPT' | 'Video';
+  thumbnailUrl: string;
+  embedUrl: string;
+  downloadUrl: string | null;
+  duration?: string | null;
+  description: string;
+  slides?: number;
+  category: string;
+  views?: number;
+}
+
 // --- DATA MATERI ---
-const learningMaterials = [
+const learningMaterials: LearningMaterial[] = [
   {
     id: 1,
     title: 'Sistem Saraf',
@@ -52,11 +66,11 @@ function FloatingShapes() {
 
 // Enhanced Modal Component
 function ContentModal({ material, isOpen, onClose }: { 
-  material: any, 
+  material: LearningMaterial | null, 
   isOpen: boolean, 
   onClose: () => void 
 }) {
-  if (!isOpen) return null;
+  if (!isOpen || !material) return null;
 
   return (
     <>
@@ -162,7 +176,7 @@ function ContentModal({ material, isOpen, onClose }: {
 }
 
 // Enhanced Material Card
-function MaterialCard({ material, onClick }: { material: any, onClick: () => void }) {
+function MaterialCard({ material, onClick }: { material: LearningMaterial, onClick: () => void }) {
   return (
     <div
       onClick={onClick}
@@ -260,7 +274,9 @@ function MaterialCard({ material, onClick }: { material: any, onClick: () => voi
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                window.open(material.downloadUrl, '_blank');
+                if (material.downloadUrl) {
+                  window.open(material.downloadUrl, '_blank');
+                }
               }}
               className="p-3 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200
                        transform hover:scale-110"
@@ -280,10 +296,10 @@ function MaterialCard({ material, onClick }: { material: any, onClick: () => voi
 }
 
 export default function MateriPage() {
-  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<LearningMaterial | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleCardClick = (material: any) => {
+  const handleCardClick = (material: LearningMaterial) => {
     setSelectedMaterial(material);
     setIsModalOpen(true);
   };

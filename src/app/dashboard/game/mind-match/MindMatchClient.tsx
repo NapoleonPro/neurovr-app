@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { FaPlay, FaSyncAlt, FaTrophy, FaHome, FaStar, FaBrain, FaCheckCircle, FaTimes, FaCheck } from 'react-icons/fa';
 import { saveGameResult } from './actions';
 
@@ -39,7 +39,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
   const [score, setScore] = useState(0);
   const [saveStatus, setSaveStatus] = useState<string>('');
 
-  const shuffleArray = (array: any[]) => {
+  const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -507,10 +507,10 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
               const isDragged = draggedTerm?.id === term.id;
               
               return (
-                <motion.div
+                <div
                   key={term.id}
                   draggable={!isUsed}
-                  onDragStart={(e: any) => handleDragStart(e, term)}
+                  onDragStart={(e) => handleDragStart(e, term)}
                   onClick={() => handleTermClick(term)}
                   className={`
                     p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer text-center font-semibold
@@ -522,18 +522,21 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
                     }
                     ${isDragged ? 'opacity-50 scale-95' : ''}
                   `}
-                  whileHover={!isUsed ? { scale: 1.05, y: -2 } : {}}
-                  whileTap={!isUsed ? { scale: 0.98 } : {}}
                 >
-                  <div className="text-sm font-bold">
-                    {term.term}
-                  </div>
-                  {isUsed && (
-                    <div className="mt-2">
-                      <FaCheckCircle className="w-4 h-4 text-green-400 mx-auto" />
+                  <motion.div
+                    whileHover={!isUsed ? { scale: 1.05, y: -2 } : {}}
+                    whileTap={!isUsed ? { scale: 0.98 } : {}}
+                  >
+                    <div className="text-sm font-bold">
+                      {term.term}
                     </div>
-                  )}
-                </motion.div>
+                    {isUsed && (
+                      <div className="mt-2">
+                        <FaCheckCircle className="w-4 h-4 text-green-400 mx-auto" />
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
               );
             })}
           </div>

@@ -210,7 +210,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
   // Menu Screen
   if (gameState === 'menu') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-teal-800 to-cyan-800 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-teal-800 to-cyan-800 flex items-center justify-center p-4 pt-24 lg:pt-32 relative overflow-hidden">
         {/* Animated Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -295,7 +295,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
     const correctCount = gameResults.filter(r => r.isCorrect).length;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 p-4 pt-24 lg:pt-32">
         <div className="container mx-auto max-w-4xl">
           {/* Header Results */}
           <motion.div
@@ -452,7 +452,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
 
   // Game Screen
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-emerald-800 to-teal-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-emerald-800 to-teal-800 p-4 pt-24 lg:pt-32">
       {/* Header */}
       <motion.div 
         initial={{ y: -50, opacity: 0 }}
@@ -673,7 +673,7 @@ export default function MindMatchClient({ gameData }: MindMatchClientProps) {
       </motion.div>
 
       {/* Back Button */}
-      <div className="mt-6 text-center">
+      <div className="mt-6 landscape:mt-4 text-center">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

@@ -25,7 +25,7 @@ const learningMaterials: LearningMaterial[] = [
     id: 1,
     title: 'Sistem Saraf',
     type: 'PPT',
-    thumbnailUrl: '/api/placeholder/400/250',
+    thumbnailUrl: '/tmbppt.png',
     embedUrl: 'https://docs.google.com/presentation/d/e/2PACX-1vSkSUhoDQhy9lzTT7ozIp1Ni5ob3UKhFbidMLVQ_xw8dPShDX3Ym4YHu6nfyR9hMA/embed?start=false&loop=false&delayms=3000',
     downloadUrl: '/files/sistem-saraf.pptx',
     duration: null,
@@ -37,8 +37,8 @@ const learningMaterials: LearningMaterial[] = [
     id: 2,
     title: 'Sistem Saraf',
     type: 'Video',
-    thumbnailUrl: '/api/placeholder/400/250',
-    embedUrl: 'https://www.youtube.com/embed/qPix_X-9t7E?autoplay=0&controls=1&rel=0',
+    thumbnailUrl: 'https://img.youtube.com/vi/hYzkwHfvwbo/hqdefault.jpg',
+    embedUrl: 'https://www.youtube.com/embed/hYzkwHfvwbo',
     downloadUrl: null,
     // duration: '3:07',
     description: 'Video animasi interaktif tentang cara kerja sistem saraf',
@@ -468,7 +468,7 @@ function ContentModal({ material, isOpen, onClose }: {
               {material.type === 'Video' ? (
                 material.embedUrl.includes('youtube.com') || material.embedUrl.includes('vimeo.com') ? (
                   <iframe
-                    src={`${material.embedUrl}&autoplay=0&controls=1&modestbranding=1&rel=0&showinfo=0`}
+                    src={`${material.embedUrl}${material.embedUrl.includes('?') ? '&' : '?'}autoplay=0&controls=1&modestbranding=1&rel=0&showinfo=0`}
                     className="w-full h-full border-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
@@ -666,11 +666,14 @@ export default function MateriPage() {
     <>
       <FloatingShapes />
       
-      {/* Main Container */}
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-purple-950 relative">
-        {/* Animated Background Grid */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDYwIDAgTCAwIDAgMCA2MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMDMpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30"></div>
-        
+      {/* Main Container with Background Image */}
+      <div 
+        className="min-h-screen relative bg-cover bg-center"
+        style={{ backgroundImage: "url('/bg.jpeg')" }}
+      >
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/50" />
+
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pt-16 sm:pt-20 lg:pt-24 relative z-10">
           
           {/* Enhanced Header Section */}

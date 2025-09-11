@@ -16,8 +16,54 @@ export default function Navbar({ user }: NavbarProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Scroll detection logic
+  useEffect(() => {
+    const controlNavbar = () => {
+      if (typeof window !== 'undefined') {
+        const currentScrollY = window.scrollY;
+        
+        // Show navbar when at the top
+        if (currentScrollY === 0) {
+          setIsVisible(true);
+        }
+        // Hide navbar when scrolling down, show when scrolling up
+        else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+          // Scrolling down - hide navbar
+          setIsVisible(false);
+          // Close any open dropdowns when hiding
+          setIsDropdownOpen(false);
+          setIsMobileMenuOpen(false);
+        } else if (currentScrollY < lastScrollY) {
+          // Scrolling up - show navbar
+          setIsVisible(true);
+        }
+        
+        // Remember current position
+        setLastScrollY(currentScrollY);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll', controlNavbar);
+
+      // cleanup function
+      return () => {
+        window.removeEventListener('scroll', controlNavbar);
+      };
+    }
+  }, [lastScrollY]);
+
+  // Force show navbar when dropdowns are open
+  useEffect(() => {
+    if (isDropdownOpen || isMobileMenuOpen) {
+      setIsVisible(true);
+    }
+  }, [isDropdownOpen, isMobileMenuOpen]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -95,8 +141,11 @@ export default function Navbar({ user }: NavbarProps) {
              onClick={() => setIsMobileMenuOpen(false)} />
       )}
 
-      {/* Main Navbar */}
-      <nav className="fixed top-4 left-4 right-4 lg:top-6 lg:left-1/2 lg:-translate-x-1/2 lg:w-auto lg:max-w-4xl z-50">
+      {/* Main Navbar with Scroll Animation */}
+      <nav className={`fixed top-4 left-4 right-4 lg:top-6 lg:left-1/2 lg:-translate-x-1/2 lg:w-auto lg:max-w-4xl z-50 
+                      transition-all duration-500 ease-in-out ${
+                        isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+                      }`}>
         <div className="bg-slate-800/95 backdrop-blur-xl rounded-2xl lg:rounded-full shadow-2xl border border-slate-700/50 px-4 lg:px-8 py-3 lg:py-4">
           <div className="flex items-center justify-between">
             
@@ -210,8 +259,10 @@ export default function Navbar({ user }: NavbarProps) {
         </div>
       </nav>
 
-      {/* Desktop Profile Dropdown (separate from main nav) */}
-      <div className="hidden lg:block fixed top-6 right-8 z-50" ref={dropdownRef}>
+      {/* Desktop Profile Dropdown (separate from main nav) with Scroll Animation */}
+      <div className={`hidden lg:block fixed top-6 right-8 z-50 transition-all duration-500 ease-in-out ${
+                        isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+                      }`} ref={dropdownRef}>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           disabled={isLoggingOut}
@@ -307,12 +358,18 @@ export default function Navbar({ user }: NavbarProps) {
         )}
       </div>
 
-      {/* Mobile Menu Panel */}
+      {/* Mobile Menu Panel with Enhanced Animation */}
       <div 
         ref={mobileMenuRef}
-        className={`lg:hidden fixed top-20 left-4 right-4 bg-slate-800/95 backdrop-blur-xl rounded-2xl 
-                   shadow-2xl border border-slate-700/50 z-45 transition-all duration-300 
-                   ${isMobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}
+        className={`lg:hidden fixed left-4 right-4 bg-slate-800/95 backdrop-blur-xl rounded-2xl 
+                   shadow-2xl border border-slate-700/50 z-45 transition-all duration-500 ease-in-out
+                   ${isMobileMenuOpen && isVisible 
+                     ? 'opacity-100 translate-y-0' 
+                     : 'opacity-0 -translate-y-4 pointer-events-none'
+                   }`}
+        style={{ 
+          top: isVisible ? '5.5rem' : '1rem' // Adjust position based on navbar visibility
+        }}
       >
         <div className="py-4">
           {navItems.map((item, index) => (
@@ -333,6 +390,23 @@ export default function Navbar({ user }: NavbarProps) {
           ))}
         </div>
       </div>
+
+      {/* Scroll to Top Button (Optional Enhancement) */}
+      {!isVisible && lastScrollY > 300 && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-8 right-8 z-40 w-12 h-12 bg-slate-800/90 hover:bg-slate-700/90 
+                   backdrop-blur-xl rounded-full shadow-2xl border border-slate-700/50 
+                   flex items-center justify-center text-white hover:text-cyan-400 
+                   transition-all duration-300 transform hover:scale-110
+                   animate-in fade-in-0 slide-in-from-bottom-4"
+          title="Scroll to top"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+          </svg>
+        </button>
+      )}
     </>
   );
 }

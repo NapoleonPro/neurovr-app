@@ -2,8 +2,8 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import { FaPlay, FaFileDownload, FaEye, FaTimes, FaClock, FaBook, FaVideo, FaGraduationCap, FaExpand, FaCompress, FaMobile, FaDesktop } from 'react-icons/fa';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { FaPlay, FaFileDownload, FaEye, FaTimes, FaClock, FaBook, FaVideo, FaGraduationCap, FaExpand, FaCompress, FaMobile, FaDesktop, FaEyeSlash } from 'react-icons/fa';
 
 interface LearningMaterial {
   id: number;
@@ -46,6 +46,65 @@ const learningMaterials: LearningMaterial[] = [
     category: 'Biologi',
   },
 ];
+
+// --- FULLSCREEN UTILITIES ---
+function requestFullscreenWithHiddenUI(element: HTMLElement) {
+  // Method 1: Standard Fullscreen API with navigation UI hidden
+  if (element.requestFullscreen) {
+    element.requestFullscreen({ navigationUI: 'hide' } as any);
+  } else if ((element as any).webkitRequestFullscreen) {
+    (element as any).webkitRequestFullscreen();
+  } else if ((element as any).mozRequestFullScreen) {
+    (element as any).mozRequestFullScreen();
+  } else if ((element as any).msRequestFullscreen) {
+    (element as any).msRequestFullscreen();
+  }
+}
+
+function exitFullscreen() {
+  if (document.exitFullscreen) {
+    document.exitFullscreen();
+  } else if ((document as any).webkitExitFullscreen) {
+    (document as any).webkitExitFullscreen();
+  } else if ((document as any).mozCancelFullScreen) {
+    (document as any).mozCancelFullScreen();
+  } else if ((document as any).msExitFullscreen) {
+    (document as any).msExitFullscreen();
+  }
+}
+
+// Hook untuk fullscreen management
+function useFullscreen() {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  const enterFullscreen = useCallback((element: HTMLElement) => {
+    requestFullscreenWithHiddenUI(element);
+  }, []);
+
+  const exitFullscreenMode = useCallback(() => {
+    exitFullscreen();
+  }, []);
+
+  return { isFullscreen, enterFullscreen, exitFullscreen: exitFullscreenMode };
+}
 
 // Hook to detect device orientation and screen size
 function useDeviceInfo() {
@@ -101,55 +160,100 @@ function FloatingShapes() {
   );
 }
 
-// Enhanced Modal Component with Auto-Hide Header on Mobile Landscape
+// Enhanced Modal Component dengan auto-fullscreen di mobile landscape
 function ContentModal({ material, isOpen, onClose }: { 
   material: LearningMaterial | null, 
   isOpen: boolean, 
   onClose: () => void 
 }) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewMode, setViewMode] = useState<'fit' | 'full'>('fit');
   const [showHeader, setShowHeader] = useState(true);
   const [headerTimeout, setHeaderTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [autoFullscreenTriggered, setAutoFullscreenTriggered] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
   const deviceInfo = useDeviceInfo();
+  const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
 
-  // Auto-hide header logic for mobile landscape
+  // Auto-trigger fullscreen untuk mobile landscape
+  useEffect(() => {
+    if (isOpen && deviceInfo.isMobile && deviceInfo.isLandscape && !autoFullscreenTriggered && modalRef.current) {
+      // Delay sedikit untuk memastikan modal sudah render
+      const timer = setTimeout(() => {
+        if (modalRef.current) {
+          enterFullscreen(modalRef.current);
+          setAutoFullscreenTriggered(true);
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Reset flag ketika modal ditutup
+    if (!isOpen) {
+      setAutoFullscreenTriggered(false);
+    }
+  }, [isOpen, deviceInfo.isMobile, deviceInfo.isLandscape, autoFullscreenTriggered, enterFullscreen]);
+
+  // Auto-hide header logic dengan durasi yang lebih lama di fullscreen
   useEffect(() => {
     if (deviceInfo.isMobile && deviceInfo.isLandscape && isOpen) {
-      // Hide header after 3 seconds on mobile landscape
+      const hideDelay = isFullscreen ? 5000 : 3000; // 5 detik di fullscreen, 3 detik biasa
+      
       const timeout = setTimeout(() => {
         setShowHeader(false);
-      }, 3000);
+      }, hideDelay);
       setHeaderTimeout(timeout);
 
       return () => {
         if (timeout) clearTimeout(timeout);
       };
     } else {
-      // Always show header on desktop or mobile portrait
       setShowHeader(true);
       if (headerTimeout) {
         clearTimeout(headerTimeout);
         setHeaderTimeout(null);
       }
     }
-  }, [isOpen, deviceInfo.isMobile, deviceInfo.isLandscape]);
+  }, [isOpen, deviceInfo.isMobile, deviceInfo.isLandscape, isFullscreen]);
+
+  // Handle modal close - exit fullscreen jika perlu
+  const handleModalClose = useCallback(() => {
+    if (isFullscreen) {
+      exitFullscreen();
+    }
+    onClose();
+  }, [isFullscreen, exitFullscreen, onClose]);
+
+  // Handle escape key untuk keluar dari fullscreen
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        if (isFullscreen) {
+          exitFullscreen();
+        } else {
+          handleModalClose();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [isOpen, isFullscreen, exitFullscreen, handleModalClose]);
 
   // Show header temporarily when user interacts
-  const handleMouseMove = () => {
+  const handleUserInteraction = useCallback(() => {
     if (deviceInfo.isMobile && deviceInfo.isLandscape && !showHeader) {
       setShowHeader(true);
       
-      // Clear existing timeout
       if (headerTimeout) clearTimeout(headerTimeout);
       
-      // Hide again after 3 seconds
+      const hideDelay = isFullscreen ? 5000 : 3000;
       const timeout = setTimeout(() => {
         setShowHeader(false);
-      }, 3000);
+      }, hideDelay);
       setHeaderTimeout(timeout);
     }
-  };
+  }, [deviceInfo.isMobile, deviceInfo.isLandscape, showHeader, headerTimeout, isFullscreen]);
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -163,14 +267,14 @@ function ContentModal({ material, isOpen, onClose }: {
   const isMobileLandscape = deviceInfo.isMobile && deviceInfo.isLandscape;
   const isMobilePortrait = deviceInfo.isMobile && !deviceInfo.isLandscape;
 
-  // Enhanced content container class with header consideration
+  // Enhanced content container class
   const getContentContainerClass = () => {
+    if (isFullscreen) {
+      return "w-full h-full bg-black";
+    }
+    
     if (material.type === 'PPT') {
-      if (isMobileLandscape && isFullscreen) {
-        return "fixed inset-0 z-60 bg-black";
-      }
       if (isMobileLandscape) {
-        // Use more space when header is hidden
         const heightClass = showHeader ? "h-[calc(100vh-120px)]" : "h-[calc(100vh-20px)]";
         return `${heightClass} w-full bg-black/50 rounded-2xl overflow-hidden border border-white/5`;
       }
@@ -179,7 +283,6 @@ function ContentModal({ material, isOpen, onClose }: {
       }
     }
     
-    // For videos, also optimize height on mobile landscape
     if (material.type === 'Video' && isMobileLandscape) {
       const heightClass = showHeader ? "h-[calc(100vh-120px)]" : "h-[calc(100vh-20px)]";
       return `${heightClass} w-full bg-black/50 rounded-2xl overflow-hidden border border-white/5`;
@@ -189,7 +292,7 @@ function ContentModal({ material, isOpen, onClose }: {
   };
 
   const getModalClass = () => {
-    if (isMobileLandscape && isFullscreen) {
+    if (isFullscreen) {
       return "fixed inset-0 z-50";
     }
     if (isMobileLandscape) {
@@ -199,7 +302,7 @@ function ContentModal({ material, isOpen, onClose }: {
   };
 
   const getModalContentClass = () => {
-    if (isMobileLandscape && isFullscreen) {
+    if (isFullscreen) {
       return "relative w-full h-full bg-black";
     }
     if (isMobileLandscape) {
@@ -214,16 +317,22 @@ function ContentModal({ material, isOpen, onClose }: {
       {!isFullscreen && (
         <div 
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md transition-opacity duration-300"
-          onClick={onClose}
+          onClick={handleModalClose}
         />
       )}
       
       {/* Modal */}
-      <div className={getModalClass()} onMouseMove={handleMouseMove} onTouchStart={handleMouseMove}>
+      <div 
+        ref={modalRef}
+        className={getModalClass()} 
+        onMouseMove={handleUserInteraction} 
+        onTouchStart={handleUserInteraction}
+        onClick={handleUserInteraction}
+      >
         <div className={getModalContentClass()}>
           
           {/* Header with Auto-Hide Animation */}
-          {!(isMobileLandscape && isFullscreen) && (
+          {!isFullscreen && (
             <div className={`bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10 transition-all duration-500 ${
               isMobileLandscape && !showHeader ? 'transform -translate-y-full opacity-0 pointer-events-none' : 'transform translate-y-0 opacity-100'
             }`}>
@@ -253,36 +362,32 @@ function ContentModal({ material, isOpen, onClose }: {
                     </div>
                   </div>
                 </div>
+                
                 <div className="flex items-center space-x-2">
-                  {/* View Mode Toggle for PPT on Mobile */}
-                  {material.type === 'PPT' && deviceInfo.isMobile && (
-                    <>
-                      <button
-                        onClick={() => setViewMode(viewMode === 'fit' ? 'full' : 'fit')}
-                        className="p-2 sm:p-3 hover:bg-white/10 rounded-xl transition-all duration-200 group"
-                        title={viewMode === 'fit' ? 'Full Height View' : 'Fit View'}
-                      >
-                        {viewMode === 'fit' ? 
-                          <FaMobile className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" /> :
-                          <FaDesktop className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                        }
-                      </button>
-                      {isMobileLandscape && (
-                        <button
-                          onClick={() => setIsFullscreen(!isFullscreen)}
-                          className="p-2 sm:p-3 hover:bg-white/10 rounded-xl transition-all duration-200 group"
-                          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-                        >
-                          {isFullscreen ? 
-                            <FaCompress className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" /> :
-                            <FaExpand className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                  {/* Manual Fullscreen Toggle */}
+                  {deviceInfo.isMobile && (
+                    <button
+                      onClick={() => {
+                        if (modalRef.current) {
+                          if (isFullscreen) {
+                            exitFullscreen();
+                          } else {
+                            enterFullscreen(modalRef.current);
                           }
-                        </button>
-                      )}
-                    </>
+                        }
+                      }}
+                      className="p-2 sm:p-3 hover:bg-white/10 rounded-xl transition-all duration-200 group"
+                      title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
+                    >
+                      {isFullscreen ? 
+                        <FaCompress className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" /> :
+                        <FaExpand className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                      }
+                    </button>
                   )}
+                  
                   <button
-                    onClick={onClose}
+                    onClick={handleModalClose}
                     className="p-2 sm:p-3 hover:bg-white/10 rounded-xl transition-all duration-200 group"
                   >
                     <FaTimes className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-white transition-colors" />
@@ -292,15 +397,14 @@ function ContentModal({ material, isOpen, onClose }: {
             </div>
           )}
 
-          {/* Floating Controls for Mobile Landscape (Always Visible) */}
-          {isMobileLandscape && !isFullscreen && (
-            <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
-              {/* Show Header Toggle */}
+          {/* Floating Controls for Fullscreen Mode */}
+          {isFullscreen && (
+            <div className="absolute top-4 right-4 z-10 flex items-center space-x-2 bg-black/70 rounded-xl p-2">
+              {/* Show/Hide Header Toggle */}
               <button
                 onClick={() => {
                   setShowHeader(!showHeader);
                   if (!showHeader) {
-                    // Auto-hide again after 5 seconds
                     const timeout = setTimeout(() => {
                       setShowHeader(false);
                     }, 5000);
@@ -308,61 +412,75 @@ function ContentModal({ material, isOpen, onClose }: {
                     setHeaderTimeout(timeout);
                   }
                 }}
-                className="p-2 bg-black/70 hover:bg-black/90 rounded-xl transition-all duration-200"
-                title={showHeader ? 'Hide Header' : 'Show Header'}
+                className="p-2 hover:bg-white/20 rounded-lg transition-all duration-200"
+                title={showHeader ? 'Hide Info' : 'Show Info'}
               >
                 {showHeader ? 
-                  <FaCompress className="w-4 h-4 text-white" /> :
-                  <FaExpand className="w-4 h-4 text-white" />
+                  <FaEyeSlash className="w-4 h-4 text-white" /> :
+                  <FaEye className="w-4 h-4 text-white" />
                 }
               </button>
               
               <button
-                onClick={onClose}
-                className="p-2 bg-black/70 hover:bg-black/90 rounded-xl transition-all duration-200"
+                onClick={exitFullscreen}
+                className="p-2 hover:bg-white/20 rounded-lg transition-all duration-200"
+                title="Exit Fullscreen"
+              >
+                <FaCompress className="w-4 h-4 text-white" />
+              </button>
+              
+              <button
+                onClick={handleModalClose}
+                className="p-2 hover:bg-white/20 rounded-lg transition-all duration-200"
+                title="Close"
               >
                 <FaTimes className="w-4 h-4 text-white" />
               </button>
             </div>
           )}
 
-          {/* Fullscreen Mobile Controls */}
-          {isMobileLandscape && isFullscreen && (
-            <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
-              <button
-                onClick={() => setIsFullscreen(false)}
-                className="p-3 bg-black/70 hover:bg-black/90 rounded-xl transition-all duration-200"
-              >
-                <FaCompress className="w-5 h-5 text-white" />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-3 bg-black/70 hover:bg-black/90 rounded-xl transition-all duration-200"
-              >
-                <FaTimes className="w-5 h-5 text-white" />
-              </button>
+          {/* Info Overlay for Fullscreen */}
+          {isFullscreen && showHeader && (
+            <div className="absolute top-4 left-4 z-10 bg-black/70 backdrop-blur-md rounded-xl p-4 max-w-sm transition-all duration-500">
+              <h4 className="text-white font-bold text-lg mb-2">{material.title}</h4>
+              <p className="text-gray-300 text-sm mb-3 line-clamp-2">{material.description}</p>
+              <div className="flex items-center space-x-3 text-xs text-gray-400">
+                <span className="bg-white/20 px-2 py-1 rounded-full">{material.category}</span>
+                {material.duration && (
+                  <span className="flex items-center space-x-1">
+                    <FaClock className="w-3 h-3" />
+                    <span>{material.duration}</span>
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Content Area with Dynamic Padding */}
-          <div className={`${isFullscreen && isMobileLandscape ? "h-full" : ""} ${
-            isMobileLandscape && !showHeader && !isFullscreen ? "p-2" : "p-3 sm:p-6"
+          {/* Content Area dengan Enhanced Interaction */}
+          <div className={`${isFullscreen ? "h-full" : ""} ${
+            isMobileLandscape && !showHeader && !isFullscreen ? "p-2" : isFullscreen ? "p-0" : "p-3 sm:p-6"
           } transition-all duration-500`}>
-            <div className={getContentContainerClass()}>
+            
+            <div 
+              className={getContentContainerClass()}
+              onClick={handleUserInteraction} // Tambah interaction untuk touch devices
+            >
               {material.type === 'Video' ? (
                 material.embedUrl.includes('youtube.com') || material.embedUrl.includes('vimeo.com') ? (
                   <iframe
-                    src={material.embedUrl}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    src={`${material.embedUrl}&autoplay=0&controls=1&modestbranding=1&rel=0&showinfo=0`}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
                     title={material.title}
                   />
                 ) : (
                   <video
-                    className="w-full h-full"
+                    className="w-full h-full object-contain"
                     controls
                     preload="metadata"
+                    playsInline
+                    controlsList="nodownload"
                   >
                     <source src={material.embedUrl} type="video/mp4" />
                     Your browser does not support the video tag.
@@ -378,18 +496,18 @@ function ContentModal({ material, isOpen, onClose }: {
               )}
             </div>
 
-            {/* Mobile Landscape Helper Text - Only show when header is visible */}
-            {material.type === 'PPT' && isMobileLandscape && !isFullscreen && showHeader && (
+            {/* Mobile Landscape Helper Text - Hanya tampil di mode normal */}
+            {!isFullscreen && isMobileLandscape && showHeader && (
               <div className="mt-4 p-3 bg-blue-600/10 rounded-xl border border-blue-600/20 transition-all duration-500">
                 <p className="text-blue-300 text-sm flex items-center space-x-2">
                   <FaMobile className="w-4 h-4" />
-                  <span>Header akan otomatis tersembunyi untuk memberikan ruang lebih luas</span>
+                  <span>Putar layar untuk fullscreen otomatis • Header akan tersembunyi otomatis</span>
                 </p>
               </div>
             )}
 
-            {/* Action Buttons - Only show when header is visible or not in mobile landscape */}
-            {material.downloadUrl && (!(isMobileLandscape && !showHeader) && !(isFullscreen && isMobileLandscape)) && (
+            {/* Download Button - Hide dalam fullscreen */}
+            {material.downloadUrl && !isFullscreen && (!(isMobileLandscape && !showHeader)) && (
               <div className="flex justify-center mt-4 sm:mt-6 transition-all duration-500">
                 <a
                   href={material.downloadUrl}

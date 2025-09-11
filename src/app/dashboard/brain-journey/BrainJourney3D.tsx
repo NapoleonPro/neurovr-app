@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, Suspense, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Html, Environment } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -143,13 +143,13 @@ function AdvancedBrainModel({
   });
 
   // Enhanced click detection dengan debug
-  const handleBrainClick = (event: ThreeEvent) => {
+  const handleBrainClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
     const clickPoint = event.point;
     
     console.log('🖱️ Click detected at:', clickPoint);
     
-    let closestPart = null;
+    let closestPart: (typeof brainParts)[0] | null = null;
     let minDistance = Infinity;
     let debugMessage = `Click at (${clickPoint.x.toFixed(2)}, ${clickPoint.y.toFixed(2)}, ${clickPoint.z.toFixed(2)})\n`;
     
@@ -169,8 +169,9 @@ function AdvancedBrainModel({
     setDebugInfo(debugMessage);
     
     if (closestPart) {
-      console.log('✅ Clicked on:', closestPart.name);
-      onPartClick(closestPart);
+      const finalPart: typeof brainParts[0] = closestPart;
+      console.log('✅ Clicked on:', finalPart.name);
+      onPartClick(finalPart);
     } else {
       console.log('❌ No part detected in click area');
     }
@@ -316,13 +317,14 @@ function CameraController({ selectedPart }: {
   const { camera, controls } = useThree();
   
   useEffect(() => {
-    if (selectedPart && controls) {
+    const orbitControls = controls as any;
+    if (selectedPart && orbitControls) {
       const targetPosition = new THREE.Vector3(...selectedPart.position);
-      controls.target.copy(targetPosition);
-      controls.update();
-    } else if (controls) {
-      controls.target.set(0, 0, 0);
-      controls.update();
+      orbitControls.target.copy(targetPosition);
+      orbitControls.update();
+    } else if (orbitControls) {
+      orbitControls.target.set(0, 0, 0);
+      orbitControls.update();
     }
   }, [selectedPart, camera, controls]);
 
@@ -628,5 +630,4 @@ export default function BrainJourney3D() {
       />
     </div>
   );
-} );
 }

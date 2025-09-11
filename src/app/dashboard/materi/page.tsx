@@ -768,21 +768,4 @@ export default function MateriPage() {
       />
     </>
   );
-}duration-300 border border-white/20 text-sm sm:text-base">
-                <span className="font-semibold">Hubungi Support</span>
-                <div className="w-4 h-4 sm:w-5 sm:h-5">→</div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Enhanced Modal */}
-      <ContentModal 
-        material={selectedMaterial} 
-        isOpen={isModalOpen} 
-        onClose={closeModal} 
-      />
-    </>
-  );
 }

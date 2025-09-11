@@ -143,7 +143,7 @@ function AdvancedBrainModel({
   });
 
   // Enhanced click detection dengan debug
-  const handleBrainClick = (event: any) => {
+  const handleBrainClick = (event: ThreeEvent) => {
     event.stopPropagation();
     const clickPoint = event.point;
     
@@ -628,4 +628,5 @@ export default function BrainJourney3D() {
       />
     </div>
   );
+} );
 }

@@ -214,7 +214,7 @@ function ContentModal({ material, isOpen, onClose }: {
         setHeaderTimeout(null);
       }
     }
-  }, [isOpen, deviceInfo.isMobile, deviceInfo.isLandscape, isFullscreen]);
+  }, [isOpen, deviceInfo.isMobile, deviceInfo.isLandscape, isFullscreen, headerTimeout]);
 
   // Handle modal close - exit fullscreen jika perlu
   const handleModalClose = useCallback(() => {
@@ -752,6 +752,23 @@ export default function MateriPage() {
               </p>
               <button className="inline-flex items-center space-x-3 px-6 py-3 sm:px-8 sm:py-4 bg-white/10 hover:bg-white/20 
                                text-white rounded-2xl transition-all duration-300 border border-white/20 text-sm sm:text-base">
+                <span className="font-semibold">Hubungi Support</span>
+                <div className="w-4 h-4 sm:w-5 sm:h-5">→</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Modal */}
+      <ContentModal 
+        material={selectedMaterial} 
+        isOpen={isModalOpen} 
+        onClose={closeModal} 
+      />
+    </>
+  );
+}duration-300 border border-white/20 text-sm sm:text-base">
                 <span className="font-semibold">Hubungi Support</span>
                 <div className="w-4 h-4 sm:w-5 sm:h-5">→</div>
               </button>

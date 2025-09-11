@@ -114,7 +114,7 @@ const brainParts = [
   }
 ];
 
-// Advanced Brain Model dengan click detection yang lebih baik
+// Enhanced Brain Model dengan Debug Info dan Better Click Detection
 function AdvancedBrainModel({ 
   onPartClick, 
   selectedPart 
@@ -124,11 +124,12 @@ function AdvancedBrainModel({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredPart, setHoveredPart] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
   // Load model 3D brain
   let brainScene = null;
   try {
-    const gltf = useGLTF('/models/brain.glb');
+    const gltf = useGLTF('/models/brain_project.glb');
     brainScene = gltf.scene;
   } catch (error) {
     console.warn('Brain model not found, using fallback geometry');
@@ -141,17 +142,22 @@ function AdvancedBrainModel({
     }
   });
 
-  // Advanced click detection
+  // Enhanced click detection dengan debug
   const handleBrainClick = (event: any) => {
+    event.stopPropagation();
     const clickPoint = event.point;
     
-    // Cari bagian terdekat
+    console.log('🖱️ Click detected at:', clickPoint);
+    
     let closestPart = null;
     let minDistance = Infinity;
+    let debugMessage = `Click at (${clickPoint.x.toFixed(2)}, ${clickPoint.y.toFixed(2)}, ${clickPoint.z.toFixed(2)})\n`;
     
     brainParts.forEach(part => {
       const partPos = new THREE.Vector3(...part.position);
       const distance = clickPoint.distanceTo(partPos);
+      
+      debugMessage += `${part.name}: distance ${distance.toFixed(2)} (radius: ${part.clickRadius})\n`;
       
       if (distance < part.clickRadius && distance < minDistance) {
         minDistance = distance;
@@ -159,30 +165,35 @@ function AdvancedBrainModel({
       }
     });
     
+    console.log(debugMessage);
+    setDebugInfo(debugMessage);
+    
     if (closestPart) {
+      console.log('✅ Clicked on:', closestPart.name);
       onPartClick(closestPart);
+    } else {
+      console.log('❌ No part detected in click area');
     }
   };
 
-  // Mouse hover detection untuk area
-  const handleMouseMove = (event: any) => {
-    const hoverPoint = event.point;
-    
-    let hoveredArea = null;
-    brainParts.forEach(part => {
-      const partPos = new THREE.Vector3(...part.position);
-      const distance = hoverPoint.distanceTo(partPos);
-      
-      if (distance < part.clickRadius) {
-        hoveredArea = part.id;
-      }
-    });
-    
-    setHoveredPart(hoveredArea);
+  // Alternative: Direct mesh click handlers
+  const handleDirectMeshClick = (part: typeof brainParts[0]) => {
+    console.log('🎯 Direct mesh click:', part.name);
+    onPartClick(part);
   };
 
   return (
     <group ref={groupRef}>
+      {/* Debug Info Display */}
+      {debugInfo && (
+        <Html position={[0, 2, 0]} center style={{ pointerEvents: 'none' }}>
+          <div className="bg-black/80 text-white p-2 rounded text-xs max-w-xs border border-white/20">
+            <div className="font-semibold mb-1">🔍 Debug Info:</div>
+            <pre className="whitespace-pre-wrap text-green-300">{debugInfo}</pre>
+          </div>
+        </Html>
+      )}
+
       {/* Main brain model */}
       {brainScene ? (
         <primitive 
@@ -190,7 +201,6 @@ function AdvancedBrainModel({
           scale={[2, 2, 2]} 
           position={[0, 0, 0]}
           onClick={handleBrainClick}
-          onPointerMove={handleMouseMove}
           onPointerOver={() => document.body.style.cursor = 'pointer'}
           onPointerOut={() => {
             document.body.style.cursor = 'default';
@@ -198,14 +208,26 @@ function AdvancedBrainModel({
           }}
         />
       ) : (
-        // Fallback: Anatomical brain sections
+        // Fallback: Individual Mesh Click Areas dengan Visual yang Lebih Baik
         <group>
+          {/* Method 1: Global Click Detection */}
+          <mesh
+            position={[0, 0, 0]}
+            onClick={handleBrainClick}
+            visible={false}
+          >
+            <boxGeometry args={[4, 4, 4]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+
+          {/* Method 2: Individual Mesh Click Areas */}
           {brainParts.map((part) => (
             <group key={part.id} position={part.position}>
+              {/* Clickable Area */}
               <mesh
                 onClick={(e) => {
                   e.stopPropagation();
-                  onPartClick(part);
+                  handleDirectMeshClick(part);
                 }}
                 onPointerOver={(e) => {
                   e.stopPropagation();
@@ -218,28 +240,39 @@ function AdvancedBrainModel({
                   document.body.style.cursor = 'default';
                 }}
               >
-                <sphereGeometry args={[part.clickRadius * 0.6, 32, 32]} />
+                <sphereGeometry args={[part.clickRadius, 32, 32]} />
                 <meshStandardMaterial 
                   color={part.color}
                   transparent
                   opacity={
                     selectedPart?.id === part.id ? 0.8 :
-                    hoveredPart === part.id ? 0.6 : 0.4
+                    hoveredPart === part.id ? 0.6 : 0.3
                   }
+                  wireframe={hoveredPart === part.id}
                   emissive={selectedPart?.id === part.id ? part.color : '#000000'}
-                  emissiveIntensity={selectedPart?.id === part.id ? 0.2 : 0}
+                  emissiveIntensity={selectedPart?.id === part.id ? 0.3 : 0}
                 />
               </mesh>
               
-              {/* Always show labels for fallback */}
+              {/* Visual Label */}
               <Html
-                position={[0, part.clickRadius * 0.8, 0]}
+                position={[0, part.clickRadius * 1.2, 0]}
                 center
                 distanceFactor={8}
                 style={{ pointerEvents: 'none' }}
               >
-                <div className="bg-black/70 text-white px-2 py-1 rounded text-xs font-semibold whitespace-nowrap">
+                <div 
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
+                    selectedPart?.id === part.id 
+                      ? 'bg-white text-black shadow-lg transform scale-110' 
+                      : hoveredPart === part.id
+                      ? 'bg-yellow-400 text-black shadow-md'
+                      : 'bg-black/70 text-white'
+                  }`}
+                >
                   {part.name}
+                  {hoveredPart === part.id && ' 👆'}
+                  {selectedPart?.id === part.id && ' ✅'}
                 </div>
               </Html>
             </group>
@@ -247,58 +280,31 @@ function AdvancedBrainModel({
         </group>
       )}
       
-      {/* Interactive visual feedback */}
-      {brainParts.map((part) => (
-        <group key={`indicator-${part.id}`} position={part.position}>
-          {/* Hover indicator */}
-          {hoveredPart === part.id && (
-            <mesh>
-              <sphereGeometry args={[part.clickRadius, 16, 16]} />
-              <meshStandardMaterial 
-                color={part.color}
-                transparent
-                opacity={0.1}
-                wireframe
-              />
-            </mesh>
-          )}
+      {/* Selection Indicators */}
+      {selectedPart && (
+        <group position={selectedPart.position}>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[selectedPart.clickRadius * 1.1, selectedPart.clickRadius * 1.3, 32]} />
+            <meshStandardMaterial 
+              color={selectedPart.color}
+              transparent
+              opacity={0.8}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
           
-          {/* Selection indicator */}
-          {selectedPart?.id === part.id && (
-            <>
-              {/* Pulsing ring */}
-              <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[part.clickRadius * 0.8, part.clickRadius * 1.1, 32]} />
-                <meshStandardMaterial 
-                  color={part.color}
-                  transparent
-                  opacity={0.7}
-                  side={THREE.DoubleSide}
-                />
-              </mesh>
-              
-              {/* Label */}
-              <Html
-                position={[0, part.clickRadius * 1.3, 0]}
-                center
-                distanceFactor={6}
-                style={{ pointerEvents: 'none' }}
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="bg-white text-black px-4 py-2 rounded-lg shadow-lg font-bold text-sm"
-                >
-                  {part.name}
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                    <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                  </div>
-                </motion.div>
-              </Html>
-            </>
-          )}
+          {/* Animated selection indicator */}
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[selectedPart.clickRadius * 0.9, selectedPart.clickRadius * 1.0, 32]} />
+            <meshStandardMaterial 
+              color="#ffffff"
+              transparent
+              opacity={0.6}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
         </group>
-      ))}
+      )}
     </group>
   );
 }
@@ -433,6 +439,7 @@ function InfoPanel({ part, onClose }: {
 export default function BrainJourney3D() {
   const [selectedPart, setSelectedPart] = useState<typeof brainParts[0] | null>(null);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handlePartClick = (part: typeof brainParts[0]) => {
     setSelectedPart(part);
@@ -449,8 +456,20 @@ export default function BrainJourney3D() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const loadTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+    return () => clearTimeout(loadTimer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+      {/* Loading Screen */}
+      <AnimatePresence>
+        {isLoading && <LoadingScreen />}
+      </AnimatePresence>
+
       {/* Animated background */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(120,119,198,0.15),transparent)]" />
@@ -459,7 +478,7 @@ export default function BrainJourney3D() {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 p-4 sm:p-6 pt-24">
+      <div className="relative z-10 p-4 sm:p-6 pt-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
           <div className="flex items-center gap-4 mb-4 sm:mb-0">
             <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -467,4 +486,146 @@ export default function BrainJourney3D() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Brain Journey 3D</h1>
-              <p className="text-gray-300">Klik langsung pada model untuk eksp
+              <p className="text-gray-300">Klik langsung pada model untuk eksplorasi interaktif</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={resetView}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white border border-white/20"
+            >
+              <FaHome className="w-4 h-4" />
+              Reset View
+            </button>
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <FaEye className="w-4 h-4" />
+              <span>{brainParts.length} Bagian Otak</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Instructions */}
+      <AnimatePresence>
+        {showInstructions && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20"
+          >
+            <div className="bg-black/50 backdrop-blur-lg rounded-xl p-6 border border-white/10 max-w-md mx-4">
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-white mb-2">Cara Menggunakan</h3>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p>🖱️ Klik bagian otak untuk info detail</p>
+                  <p>🔄 Drag untuk memutar model</p>
+                  <p>🔍 Scroll untuk zoom in/out</p>
+                  <p>⌨️ Tekan ESC untuk tutup info panel</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 3D Canvas */}
+      <div className="relative h-screen">
+        <Canvas
+          camera={{ position: [5, 2, 5], fov: 60 }}
+          dpr={[1, 2]}
+        >
+          <Suspense fallback={null}>
+            {/* Lighting */}
+            <ambientLight intensity={0.4} />
+            <directionalLight position={[10, 10, 5]} intensity={1} />
+            <pointLight position={[-10, -10, -10]} intensity={0.3} color="#4F46E5" />
+            <pointLight position={[10, -10, 10]} intensity={0.3} color="#7C3AED" />
+            
+            {/* Environment */}
+            <Environment preset="city" />
+            
+            {/* Brain Model */}
+            <AdvancedBrainModel 
+              onPartClick={handlePartClick} 
+              selectedPart={selectedPart}
+            />
+            
+            {/* Controls */}
+            <OrbitControls 
+              enablePan={true}
+              enableZoom={true}
+              enableRotate={true}
+              minDistance={2}
+              maxDistance={10}
+              autoRotate={!selectedPart}
+              autoRotateSpeed={0.5}
+            />
+            
+            {/* Camera Controller */}
+            <CameraController selectedPart={selectedPart} />
+          </Suspense>
+        </Canvas>
+        
+        {/* Overlay Controls */}
+        <div className="absolute bottom-4 left-4 z-10">
+          <div className="bg-black/50 backdrop-blur-lg rounded-lg p-3 border border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="text-white text-sm">
+                {selectedPart ? `Melihat: ${selectedPart.name}` : 'Mode Eksplorasi'}
+              </div>
+              {selectedPart && (
+                <button
+                  onClick={resetView}
+                  className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-white transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Info - Bottom Right */}
+        <div className="absolute bottom-4 right-4 z-10">
+          <div className="bg-black/50 backdrop-blur-lg rounded-lg p-3 border border-white/10 max-w-xs">
+            <div className="text-white text-sm">
+              {selectedPart ? (
+                <>
+                  <div className="font-semibold mb-1">{selectedPart.name}</div>
+                  <div className="text-gray-300 text-xs">{selectedPart.description}</div>
+                </>
+              ) : (
+                <div className="text-gray-300 text-xs">
+                  Klik pada bagian otak untuk mempelajari fungsinya
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Panel */}
+      <AnimatePresence>
+        {selectedPart && (
+          <InfoPanel 
+            part={selectedPart} 
+            onClose={resetView}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ESC Key Handler */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && selectedPart) {
+            resetView();
+          }
+        }}
+        tabIndex={-1}
+      />
+    </div>
+  );
+}

@@ -14,10 +14,7 @@ import {
 } from 'react-icons/fa';
 import * as THREE from 'three';
 
-interface CustomOrbitControls {
-  target: THREE.Vector3;
-  update(): void;
-}
+
 
 // Data bagian otak dengan posisi yang lebih akurat
 const brainParts = [

@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FaPlay, FaFileDownload, FaEye, FaTimes, FaClock, FaBook, FaVideo, FaGraduationCap, FaExpand, FaCompress, FaMobile, FaDesktop, FaEyeSlash } from 'react-icons/fa';
+import { FaPlay, FaFileDownload, FaEye, FaTimes, FaClock, FaBook, FaVideo, FaGraduationCap, FaExpand, FaCompress, FaMobile, FaEyeSlash } from 'react-icons/fa';
 
 interface LearningMaterial {
   id: number;
@@ -17,6 +17,18 @@ interface LearningMaterial {
   slides?: number;
   category: string;
   views?: number;
+}
+
+interface CustomHTMLElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void>;
+  mozRequestFullScreen?: () => Promise<void>;
+  msRequestFullscreen?: () => Promise<void>;
+}
+
+interface CustomDocument extends Document {
+  webkitExitFullscreen?: () => Promise<void>;
+  mozCancelFullScreen?: () => Promise<void>;
+  msExitFullscreen?: () => Promise<void>;
 }
 
 // --- DATA MATERI ---
@@ -52,26 +64,28 @@ const learningMaterials: LearningMaterial[] = [
 
 // --- FULLSCREEN UTILITIES ---
 function requestFullscreenWithHiddenUI(element: HTMLElement) {
-  if (element.requestFullscreen) {
-    element.requestFullscreen({ navigationUI: 'hide' });
-  } else if (typeof (element as any).webkitRequestFullscreen === 'function') {
-    (element as any).webkitRequestFullscreen();
-  } else if (typeof (element as any).mozRequestFullScreen === 'function') {
-    (element as any).mozRequestFullScreen();
-  } else if (typeof (element as any).msRequestFullscreen === 'function') {
-    (element as any).msRequestFullscreen();
+  const el = element as CustomHTMLElement;
+  if (el.requestFullscreen) {
+    el.requestFullscreen({ navigationUI: 'hide' });
+  } else if (el.webkitRequestFullscreen) {
+    el.webkitRequestFullscreen();
+  } else if (el.mozRequestFullScreen) {
+    el.mozRequestFullScreen();
+  } else if (el.msRequestFullscreen) {
+    el.msRequestFullscreen();
   }
 }
 
 function exitFullscreen() {
-  if (document.exitFullscreen) {
-    document.exitFullscreen();
-  } else if (typeof (document as any).webkitExitFullscreen === 'function') {
-    (document as any).webkitExitFullscreen();
-  } else if (typeof (document as any).mozCancelFullScreen === 'function') {
-    (document as any).mozCancelFullScreen();
-  } else if (typeof (document as any).msExitFullscreen === 'function') {
-    (document as any).msExitFullscreen();
+  const doc = document as CustomDocument;
+  if (doc.exitFullscreen) {
+    doc.exitFullscreen();
+  } else if (doc.webkitExitFullscreen) {
+    doc.webkitExitFullscreen();
+  } else if (doc.mozCancelFullScreen) {
+    doc.mozCancelFullScreen();
+  } else if (doc.msExitFullscreen) {
+    doc.msExitFullscreen();
   }
 }
 

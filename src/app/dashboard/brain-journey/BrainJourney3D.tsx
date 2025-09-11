@@ -1,9 +1,10 @@
 // src/app/dashboard/brain-journey/BrainJourney3D.tsx (Advanced Version)
 'use client';
 
-import React, { useRef, useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Html, Environment } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaTimes, 
@@ -12,6 +13,11 @@ import {
   FaHome
 } from 'react-icons/fa';
 import * as THREE from 'three';
+
+interface CustomOrbitControls {
+  target: THREE.Vector3;
+  update(): void;
+}
 
 // Data bagian otak dengan posisi yang lebih akurat
 const brainParts = [
@@ -131,7 +137,7 @@ function AdvancedBrainModel({
   try {
     const gltf = useGLTF('/models/brain_project.glb');
     brainScene = gltf.scene;
-  } catch (error) {
+  } catch (_error) {
     console.warn('Brain model not found, using fallback geometry');
   }
   
@@ -317,7 +323,7 @@ function CameraController({ selectedPart }: {
   const { camera, controls } = useThree();
   
   useEffect(() => {
-    const orbitControls = controls as any;
+    const orbitControls = controls as OrbitControlsImpl;
     if (selectedPart && orbitControls) {
       const targetPosition = new THREE.Vector3(...selectedPart.position);
       orbitControls.target.copy(targetPosition);

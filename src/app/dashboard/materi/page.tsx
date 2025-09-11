@@ -47,16 +47,18 @@ const learningMaterials: LearningMaterial[] = [
   },
 ];
 
+// --- Type Definitions for Fullscreen API ---
+
+
 // --- FULLSCREEN UTILITIES ---
 function requestFullscreenWithHiddenUI(element: HTMLElement) {
-  // Method 1: Standard Fullscreen API with navigation UI hidden
   if (element.requestFullscreen) {
-    element.requestFullscreen({ navigationUI: 'hide' } as any);
-  } else if ((element as any).webkitRequestFullscreen) {
+    element.requestFullscreen({ navigationUI: 'hide' });
+  } else if (typeof (element as any).webkitRequestFullscreen === 'function') {
     (element as any).webkitRequestFullscreen();
-  } else if ((element as any).mozRequestFullScreen) {
+  } else if (typeof (element as any).mozRequestFullScreen === 'function') {
     (element as any).mozRequestFullScreen();
-  } else if ((element as any).msRequestFullscreen) {
+  } else if (typeof (element as any).msRequestFullscreen === 'function') {
     (element as any).msRequestFullscreen();
   }
 }
@@ -64,11 +66,11 @@ function requestFullscreenWithHiddenUI(element: HTMLElement) {
 function exitFullscreen() {
   if (document.exitFullscreen) {
     document.exitFullscreen();
-  } else if ((document as any).webkitExitFullscreen) {
+  } else if (typeof (document as any).webkitExitFullscreen === 'function') {
     (document as any).webkitExitFullscreen();
-  } else if ((document as any).mozCancelFullScreen) {
+  } else if (typeof (document as any).mozCancelFullScreen === 'function') {
     (document as any).mozCancelFullScreen();
-  } else if ((document as any).msExitFullscreen) {
+  } else if (typeof (document as any).msExitFullscreen === 'function') {
     (document as any).msExitFullscreen();
   }
 }
